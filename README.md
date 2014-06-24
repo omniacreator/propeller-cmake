@@ -1,4 +1,4 @@
-propeller-cmake
+Propeller CMake
 ===============
 
 Propeller CMake Build System
