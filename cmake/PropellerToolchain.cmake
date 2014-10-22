@@ -15,13 +15,13 @@
 
 # Inspired By: https://github.com/queezythegreat/arduino-cmake #################
 
-set(CMAKE_SYSTEM_NAME Propeller)
+set(CMAKE_SYSTEM_NAME "Propeller")
 
-set(CMAKE_C_COMPILER propeller-elf-gcc)
-set(CMAKE_CXX_COMPILER propeller-elf-g++)
+set(CMAKE_C_COMPILER "propeller-elf-gcc")
+set(CMAKE_CXX_COMPILER "propeller-elf-g++")
 
-if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/Platform/Propeller.cmake)
-    list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/Platform/Propeller.cmake")
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 endif()
 
 if(WIN32)
@@ -30,12 +30,16 @@ elseif(UNIX)
     include(Platform/UnixPaths)
     if(APPLE)
         list(APPEND CMAKE_SYSTEM_PREFIX_PATH
-        ~/Applications /Applications /Developer/Applications /sw /opt/local)
+        "~/Applications"
+        "/Applications"
+        "/Developer/Applications"
+        "/sw"
+        "/opt/local")
     endif()
 endif()
 
 if(PROPELLER_SDK_PATH)
-    list(APPEND CMAKE_SYSTEM_PREFIX_PATH ${PROPELLER_SDK_PATH}/propeller-gcc)
+    list(APPEND CMAKE_SYSTEM_PREFIX_PATH "${PROPELLER_SDK_PATH}/propeller-gcc")
 else()
     message(FATAL_ERROR "PROPELLER_SDK_PATH not defined!")
 endif()
