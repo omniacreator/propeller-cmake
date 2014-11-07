@@ -110,17 +110,17 @@ set(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO
 
 # Executable Paths #############################################################
 
-find_program(CMAKE_OBJCOPY NAMES propeller-elf-objcopy)
-find_program(CMAKE_OBJDUMP NAMES propeller-elf-objdump)
+find_program(CMAKE_OBJCOPY NAMES "propeller-elf-objcopy")
+find_program(CMAKE_OBJDUMP NAMES "propeller-elf-objdump")
 
-find_program(CMAKE_OBJLOAD NAMES propeller-load)
-find_program(CMAKE_OBJSPIN NAMES openspin)
+find_program(CMAKE_OBJLOAD NAMES "propeller-load")
+find_program(CMAKE_OBJSPIN NAMES "openspin")
 
 ################################################################################
 # generate_cogc_object() - Compiles cogc source into a linkable cogc object.
 #
-# INPUT = COGC_FILE - Full path to input cogc file
-# OUTPUT = COGC_FILE_OBJECT - Full path to output cogc object file
+# INPUT = COGC_FILE - Full path to input cogc file.
+# OUTPUT = COGC_FILE_OBJECT - Full path to output cogc object file.
 ################################################################################
 
 function(generate_cogc_object COGC_FILE)
@@ -130,34 +130,35 @@ function(generate_cogc_object COGC_FILE)
 
     if("${COGC_FILE_EXT}" STREQUAL ".cogc")
         set(COGC_COMPILIER "${CMAKE_C_COMPILER}")
-        set(COGC_FLAGS "${CMAKE_C_FLAGS} -mcog -xc -r")
+        set(COGC_FLAGS "${CMAKE_C_FLAGS} -xc -mcog -r")
     elseif("${COGC_FILE_EXT}" STREQUAL ".cogcpp")
         set(COGC_COMPILIER "${CMAKE_CXX_COMPILER}")
-        set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -mcog -xc++ -r")
+        set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -xc++ -mcog -r")
     else()
         message(FATAL_ERROR "Unknown file type \"${COGC_FILE_EXT}\"!")
     endif()
 
-    get_filename_component(COGC_FILE_WE "${COGC_FILE}" NAME_WE)
-    get_filename_component(COGC_FILE_PATH "${COGC_FILE}" DIRECTORY)
-    string(REGEX REPLACE "[^0-9A-Za-z]" "_" COGC_FILE_PATH "${COGC_FILE_PATH}")
+    string(REGEX REPLACE "\\\\" "/" COGC_FILE_OBJ "${COGC_FILE}")
+    string(REGEX REPLACE "[^0-9A-Za-z./]" "_" COGC_FILE_OBJ "${COGC_FILE_OBJ}")
 
     set(COGC_FILE_OBJ
-    "${CMAKE_BINARY_DIR}/${COGC_FILE_PATH}/${COGC_FILE_WE}.o")
-
-    set(COGC_FILE_OBJ_TEMP
-    "${CMAKE_BINARY_DIR}/${COGC_FILE_PATH}/${COGC_FILE_WE}.o")
+    "${CMAKE_BINARY_DIR}/CMakeFiles/cogc.dir/${COGC_FILE_OBJ}.obj")
 
     set_source_files_properties("${COGC_FILE_OBJ}" PROPERTIES
     EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
-    set(COGC_OBJCOPY_ARGS "--localize-text --rename-section")
+    separate_arguments(COGC_FLAGS)
+    get_filename_component(COGC_FILE_OBJ_NAME "${COGC_FILE_OBJ}" NAME)
 
     add_custom_command(OUTPUT "${COGC_FILE_OBJ}"
     COMMAND "${COGC_COMPILIER}"
-    ARGS "${COGC_FLAGS} -o ${COGC_FILE_OBJ} -c ${COGC_FILE}"
+    ARGS ${COGC_FLAGS}
+    ARGS -o "${COGC_FILE_OBJ}"
+    ARGS -c "${COGC_FILE}"
     COMMAND "${CMAKE_OBJCOPY}"
-    ARGS "${COGC_OBJCOPY_ARGS} .text=${COGC_FILE_WE}.o ${COGC_FILE_OBJ}")
+    ARGS --localize-text --rename-section
+    ARGS .text="${COGC_FILE_OBJ_NAME}"
+    ARGS "${COGC_FILE_OBJ}")
 
     set(COGC_FILE_OBJECT "${COGC_FILE_OBJ}" PARENT_SCOPE)
 
@@ -166,8 +167,8 @@ endfunction()
 ################################################################################
 # generate_spin_object() - Compiles spin source into a linkable spin object.
 #
-# INPUT = SPIN_FILE - Full path to input spin file
-# OUTPUT = SPIN_FILE_OBJECT - Full path to output spin object file
+# INPUT = SPIN_FILE - Full path to input spin file.
+# OUTPUT = SPIN_FILE_OBJECT - Full path to output spin object file.
 ################################################################################
 
 function(generate_spin_object SPIN_FILE)
@@ -175,33 +176,28 @@ function(generate_spin_object SPIN_FILE)
     get_filename_component(SPIN_FILE_EXT "${SPIN_FILE}" EXT)
     string(TOLOWER "${SPIN_FILE_EXT}" SPIN_FILE_EXT)
 
-    if("${SPIN_FILE_EXT}" STREQUAL ".spin")
-        set(SPIN_COMPILIER "${CMAKE_OBJSPIN}")
-        set(SPIN_FLAGS "-I ${PROPELLER_SDK_PATH}/propeller-gcc/spin")
-    else()
+    if(NOT "${SPIN_FILE_EXT}" STREQUAL ".spin")
         message(FATAL_ERROR "Unknown file type \"${SPIN_FILE_EXT}\"!")
     endif()
 
-    get_filename_component(SPIN_FILE_WE "${SPIN_FILE}" NAME_WE)
-    get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
-    string(REGEX REPLACE "[^0-9A-Za-z]" "_" SPIN_FILE_PATH "${SPIN_FILE_PATH}")
+    string(REGEX REPLACE "\\\\" "/" SPIN_FILE_OBJ "${SPIN_FILE}")
+    string(REGEX REPLACE "[^0-9A-Za-z./]" "_" SPIN_FILE_OBJ "${SPIN_FILE_OBJ}")
 
     set(SPIN_FILE_OBJ
-    "${CMAKE_BINARY_DIR}/${SPIN_FILE_PATH}/${SPIN_FILE_WE}.o")
-
-    set(SPIN_FILE_OBJ_TEMP
-    "${CMAKE_BINARY_DIR}/${SPIN_FILE_PATH}/${SPIN_FILE_WE}.dat")
+    "${CMAKE_BINARY_DIR}/CMakeFiles/spin.dir/${SPIN_FILE_OBJ}.obj")
 
     set_source_files_properties("${SPIN_FILE_OBJ}" PROPERTIES
     EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
-    set(SPIN_OBJCOPY_ARGS "-I binary -B propeller -O propeller-elf-gcc")
-
     add_custom_command(OUTPUT "${SPIN_FILE_OBJ}"
-    COMMAND "${SPIN_COMPILIER}"
-    ARGS "${SPIN_FLAGS} -o ${SPIN_FILE_OBJ} -c ${SPIN_FILE}"
+    COMMAND "${CMAKE_OBJSPIN}"
+    ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
+    ARGS -o "${SPIN_FILE_OBJ}"
+    ARGS -c "${SPIN_FILE}"
     COMMAND "${CMAKE_OBJCOPY}"
-    ARGS "${SPIN_OBJCOPY_ARGS} ${SPIN_FILE_OBJ_TEMP} ${SPIN_FILE_OBJ}")
+    ARGS -I binary -B propeller -O propeller-elf-gcc
+    ARGS "${SPIN_FILE_OBJ}"
+    ARGS "${SPIN_FILE_OBJ}")
 
     set(SPIN_FILE_OBJECT "${SPIN_FILE_OBJ}" PARENT_SCOPE)
 
@@ -210,15 +206,20 @@ endfunction()
 ################################################################################
 # parse_side_file() - Gets source paths from a side file.
 #
-# INPUT = SIDE_FILE - Full path to input side file
-# OUTPUT = SIDE_FILE_SOURCES - Source file list
+# INPUT = SIDE_FILE - Full path to input side file.
+# OUTPUT = SIDE_FILE_SOURCES - Source file list.
+# OUTPUT = SIDE_FILE_HEADERS - Header file list.
+# OUTPUT = SIDE_FILE_FOLDERS - Folder list.
 ################################################################################
 
 function(parse_side_file SIDE_FILE)
 
     set(SIDE_FILE_SOURCE_LIST "")
+    set(SIDE_FILE_HEADER_LIST "")
+    set(SIDE_FILE_FOLDER_LIST "")
 
     get_filename_component(SIDE_FILE_PATH "${SIDE_FILE}" DIRECTORY)
+
     file(STRINGS "${SIDE_FILE}" SIDE_FILE_STRINGS)
 
     foreach(SIDE_FILE_STRING ${SIDE_FILE_STRINGS})
@@ -231,12 +232,17 @@ function(parse_side_file SIDE_FILE)
 
             set(SIDE_FILE_SOURCE_FILE "${SIDE_FILE_PATH}/${SIDE_FILE_STRING}")
 
+            get_filename_component(FILE_D "${SIDE_FILE_SOURCE_FILE}" DIRECTORY)
+            list(APPEND SIDE_FILE_FOLDER_LIST "${FILE_D}")
+
             get_filename_component(FILE_TYPE "${SIDE_FILE_SOURCE_FILE}" EXT)
             string(TOLOWER "${FILE_TYPE}" FILE_TYPE)
 
             if("${FILE_TYPE}" STREQUAL ".side")
                 parse_side_file("${SIDE_FILE_SOURCE_FILE}")
-                list(APPEND SIDE_FILE_SOURCE_LIST "${SIDE_FILE_SOURCES}")
+                list(APPEND SIDE_FILE_SOURCE_LIST ${SIDE_FILE_SOURCES})
+                list(APPEND SIDE_FILE_HEADER_LIST ${SIDE_FILE_HEADERS})
+                list(APPEND SIDE_FILE_FOLDER_LIST ${SIDE_FILE_FOLDERS})
             elseif(("${FILE_TYPE}" STREQUAL ".cogc")
             OR ("${FILE_TYPE}" STREQUAL ".cogcpp"))
                 generate_cogc_object("${SIDE_FILE_SOURCE_FILE}")
@@ -253,14 +259,15 @@ function(parse_side_file SIDE_FILE)
             OR ("${FILE_TYPE}" STREQUAL ".cxx")
             OR ("${FILE_TYPE}" STREQUAL ".c++")
             OR ("${FILE_TYPE}" STREQUAL ".s")
-            OR ("${FILE_TYPE}" STREQUAL ".sx")
-            OR ("${FILE_TYPE}" STREQUAL ".h")
+            OR ("${FILE_TYPE}" STREQUAL ".sx"))
+                list(APPEND SIDE_FILE_SOURCE_LIST "${SIDE_FILE_SOURCE_FILE}")
+            elseif(("${FILE_TYPE}" STREQUAL ".h")
             OR ("${FILE_TYPE}" STREQUAL ".hpp")
             OR ("${FILE_TYPE}" STREQUAL ".hh")
             OR ("${FILE_TYPE}" STREQUAL ".hp")
             OR ("${FILE_TYPE}" STREQUAL ".hxx")
             OR ("${FILE_TYPE}" STREQUAL ".h++"))
-                list(APPEND SIDE_FILE_SOURCE_LIST "${SIDE_FILE_SOURCE_FILE}")
+                list(APPEND SIDE_FILE_HEADER_LIST "${SIDE_FILE_SOURCE_FILE}")
             else()
                 message(FATAL_ERROR "Unknown file type \"${FILE_TYPE}\"!")
             endif()
@@ -269,36 +276,58 @@ function(parse_side_file SIDE_FILE)
     endforeach()
 
     list(REMOVE_DUPLICATES SIDE_FILE_SOURCE_LIST)
-    set(SIDE_FILE_SOURCES "${SIDE_FILE_SOURCE_LIST}" PARENT_SCOPE)
+    list(REMOVE_DUPLICATES SIDE_FILE_HEADER_LIST)
+    list(REMOVE_DUPLICATES SIDE_FILE_FOLDER_LIST)
+
+    set(SIDE_FILE_SOURCES ${SIDE_FILE_SOURCE_LIST} PARENT_SCOPE)
+    set(SIDE_FILE_HEADERS ${SIDE_FILE_HEADER_LIST} PARENT_SCOPE)
+    set(SIDE_FILE_FOLDERS ${SIDE_FILE_FOLDER_LIST} PARENT_SCOPE)
 
 endfunction()
 
 ################################################################################
 # parse_file_or_folder_path() - Gets source paths from a file or folder path.
 #
-# INPUT = FF_PATH - Full path to input file or folder path
-# OUTPUT = FF_PATH_SOURCES - Source file list
+# INPUT = FF_PATH - Full path to input file or folder path.
+# OUTPUT = FF_PATH_SOURCES - Source file list.
+# OUTPUT = FF_PATH_HEADERS - Header file list.
+# OUTPUT = FF_PATH_FOLDERS - Folder list.
 ################################################################################
 
 function(parse_file_or_folder_path FF_PATH)
 
     set(FF_PATH_SOURCE_LIST "")
+    set(FF_PATH_HEADER_LIST "")
+    set(FF_PATH_FOLDER_LIST "")
 
     if(IS_DIRECTORY "${FF_PATH}")
+
+        list(APPEND FF_PATH_FOLDER_LIST "${FF_PATH}")
 
         get_filename_component(FF_PATH_NAME "${FF_PATH}" NAME)
 
         if(EXISTS "${FF_PATH}/${FF_PATH_NAME}.side")
+
             parse_side_file("${FF_PATH}/${FF_PATH_NAME}.side")
-            list(APPEND FF_PATH_SOURCE_LIST "${SIDE_FILE_SOURCES}")
+            list(APPEND FF_PATH_SOURCE_LIST ${SIDE_FILE_SOURCES})
+            list(APPEND FF_PATH_HEADER_LIST ${SIDE_FILE_HEADERS})
+            list(APPEND FF_PATH_FOLDER_LIST ${SIDE_FILE_FOLDERS})
+
         else()
 
             file(GLOB_RECURSE SIDE_FILES
             "${FF_PATH}/*.side")
 
             foreach(SIDE_FILE ${SIDE_FILES})
+
+                get_filename_component(FILE_D "${SIDE_FILE}" DIRECTORY)
+                list(APPEND FF_PATH_FOLDER_LIST "${FILE_D}")
+
                 parse_side_file("${SIDE_FILE}")
-                list(APPEND FF_PATH_SOURCE_LIST "${SIDE_FILE_SOURCES}")
+                list(APPEND FF_PATH_SOURCE_LIST ${SIDE_FILE_SOURCES})
+                list(APPEND FF_PATH_HEADER_LIST ${SIDE_FILE_HEADERS})
+                list(APPEND FF_PATH_FOLDER_LIST ${SIDE_FILE_FOLDERS})
+
             endforeach()
 
             file(GLOB_RECURSE COGC_FILES
@@ -306,16 +335,26 @@ function(parse_file_or_folder_path FF_PATH)
             "${FF_PATH}/*.cogcpp")
 
             foreach(COGC_FILE ${COGC_FILES})
+
+                get_filename_component(FILE_D "${SPIN_FILE}" DIRECTORY)
+                list(APPEND FF_PATH_FOLDER_LIST "${FILE_D}")
+
                 generate_cogc_object("${COGC_FILE}")
                 list(APPEND FF_PATH_SOURCE_LIST "${COGC_FILE_OBJECT}")
+
             endforeach()
 
             file(GLOB_RECURSE SPIN_FILES
             "${LIBRARY_PATH}/*.spin")
 
             foreach(SPIN_FILE ${SPIN_FILES})
+
+                get_filename_component(FILE_D "${SPIN_FILE}" DIRECTORY)
+                list(APPEND FF_PATH_FOLDER_LIST "${FILE_D}")
+
                 generate_spin_object("${SPIN_FILE}")
                 list(APPEND FF_PATH_SOURCE_LIST "${SPIN_FILE_OBJECT}")
+
             endforeach()
 
             file(GLOB_RECURSE SOURCE_FILES
@@ -330,7 +369,12 @@ function(parse_file_or_folder_path FF_PATH)
             "${FF_PATH}/*.s"
             "${FF_PATH}/*.sx")
 
-            list(APPEND FF_PATH_SOURCE_LIST "${SOURCE_FILES}")
+            foreach(SOURCE_FILE ${SOURCE_FILES})
+                get_filename_component(FILE_D "${SOURCE_FILE}" DIRECTORY)
+                list(APPEND FF_PATH_FOLDER_LIST "${FILE_D}")
+            endforeach()
+
+            list(APPEND FF_PATH_SOURCE_LIST ${SOURCE_FILES})
 
             file(GLOB_RECURSE HEADER_FILES
             "${FF_PATH}/*.h"
@@ -340,18 +384,28 @@ function(parse_file_or_folder_path FF_PATH)
             "${FF_PATH}/*.hxx"
             "${FF_PATH}/*.h++")
 
-            list(APPEND FF_PATH_SOURCE_LIST "${HEADER_FILES}")
+            foreach(HEADER_FILE ${HEADER_FILES})
+                get_filename_component(FILE_D "${HEADER_FILE}" DIRECTORY)
+                list(APPEND FF_PATH_FOLDER_LIST "${FILE_D}")
+            endforeach()
+
+            list(APPEND FF_PATH_HEADER_LIST ${HEADER_FILES})
 
         endif()
 
     else()
+
+        get_filename_component(FILE_D "${FF_PATH}" DIRECTORY)
+        list(APPEND FF_PATH_FOLDER_LIST "${FILE_D}")
 
         get_filename_component(FILE_TYPE "${FF_PATH}" EXT)
         string(TOLOWER "${FILE_TYPE}" FILE_TYPE)
 
         if("${FILE_TYPE}" STREQUAL ".side")
             parse_side_file("${FF_PATH}")
-            list(APPEND FF_PATH_SOURCE_LIST "${SIDE_FILE_SOURCES}")
+            list(APPEND FF_PATH_SOURCE_LIST ${SIDE_FILE_SOURCES})
+            list(APPEND FF_PATH_HEADER_LIST ${SIDE_FILE_HEADERS})
+            list(APPEND FF_PATH_FOLDER_LIST ${SIDE_FILE_FOLDERS})
         elseif(("${FILE_TYPE}" STREQUAL ".cogc")
         OR ("${FILE_TYPE}" STREQUAL ".cogcpp"))
             generate_cogc_object("${FF_PATH}")
@@ -368,49 +422,28 @@ function(parse_file_or_folder_path FF_PATH)
         OR ("${FILE_TYPE}" STREQUAL ".cxx")
         OR ("${FILE_TYPE}" STREQUAL ".c++")
         OR ("${FILE_TYPE}" STREQUAL ".s")
-        OR ("${FILE_TYPE}" STREQUAL ".sx")
-        OR ("${FILE_TYPE}" STREQUAL ".h")
+        OR ("${FILE_TYPE}" STREQUAL ".sx"))
+            list(APPEND FF_PATH_SOURCE_LIST "${FF_PATH}")
+        elseif(("${FILE_TYPE}" STREQUAL ".h")
         OR ("${FILE_TYPE}" STREQUAL ".hpp")
         OR ("${FILE_TYPE}" STREQUAL ".hh")
         OR ("${FILE_TYPE}" STREQUAL ".hp")
         OR ("${FILE_TYPE}" STREQUAL ".hxx")
         OR ("${FILE_TYPE}" STREQUAL ".h++"))
-            list(APPEND FF_PATH_SOURCE_LIST "${FF_PATH}")
+            list(APPEND FF_PATH_HEADER_LIST "${FF_PATH}")
         else()
             message(FATAL_ERROR "Unknown file type \"${FILE_TYPE}\"!")
         endif()
 
     endif()
 
-    set(SOURCES_VALID "0")
+    list(REMOVE_DUPLICATES FF_PATH_SOURCE_LIST)
+    list(REMOVE_DUPLICATES FF_PATH_HEADER_LIST)
+    list(REMOVE_DUPLICATES FF_PATH_FOLDER_LIST)
 
-    foreach(SOURCE_FILE ${FF_PATH_SOURCE_LIST})
-
-        get_filename_component(FILE_TYPE "${SOURCE_FILE}" EXT)
-        string(TOLOWER "${FILE_TYPE}" FILE_TYPE)
-
-        if(("${FILE_TYPE}" STREQUAL ".c")
-        OR ("${FILE_TYPE}" STREQUAL ".i")
-        OR ("${FILE_TYPE}" STREQUAL ".cpp")
-        OR ("${FILE_TYPE}" STREQUAL ".ii")
-        OR ("${FILE_TYPE}" STREQUAL ".cc")
-        OR ("${FILE_TYPE}" STREQUAL ".cp")
-        OR ("${FILE_TYPE}" STREQUAL ".cxx")
-        OR ("${FILE_TYPE}" STREQUAL ".c++")
-        OR ("${FILE_TYPE}" STREQUAL ".s")
-        OR ("${FILE_TYPE}" STREQUAL ".sx")
-        OR ("${FILE_TYPE}" STREQUAL ".o"))
-            set(SOURCES_VALID "1")
-        endif()
-
-    endforeach()
-
-    if("${SOURCES_VALID}")
-        list(REMOVE_DUPLICATES FF_PATH_SOURCE_LIST)
-        set(FF_PATH_SOURCES "${FF_PATH_SOURCE_LIST}" PARENT_SCOPE)
-    else()
-        set(FF_PATH_SOURCES "" PARENT_SCOPE)
-    endif()
+    set(FF_PATH_SOURCES ${FF_PATH_SOURCE_LIST} PARENT_SCOPE)
+    set(FF_PATH_HEADERS ${FF_PATH_HEADER_LIST} PARENT_SCOPE)
+    set(FF_PATH_FOLDERS ${FF_PATH_FOLDER_LIST} PARENT_SCOPE)
 
 endfunction()
 
@@ -425,102 +458,27 @@ endfunction()
 
 function(setup_library FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 
-    if(IS_DIRECTORY "${FF_PATH}")
-
-        include_directories("${FF_PATH}")
-
-        if(EXISTS "${FF_PATH}/utility")
-            include_directories("${FF_PATH}/utility")
-        endif()
-
-        if(EXISTS "${FF_PATH}/source")
-            include_directories("${FF_PATH}/source")
-        endif()
-
-    else()
-        get_filename_component(FF_PATH_PATH "${FF_PATH}" DIRECTORY)
-        include_directories("${FF_PATH_PATH}")
-    endif()
-
     parse_file_or_folder_path("${FF_PATH}")
+    include_directories(${FF_PATH_FOLDERS})
 
     if(FF_PATH_SOURCES)
 
         get_filename_component(FF_PATH_NAME "${FF_PATH}" NAME_WE)
         string(REGEX REPLACE "[^0-9A-Za-z]" "_" FF_PATH_NAME "${FF_PATH_NAME}")
+
+        list(APPEND FF_PATH_SOURCES ${FF_PATH_HEADERS})
         add_library("${FF_PATH_NAME}" STATIC ${FF_PATH_SOURCES})
 
         set_target_properties("${FF_PATH_NAME}" PROPERTIES
         COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
-        LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}")
+        LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
+        SUFFIX ".a")
 
         set(LIB_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
 
     else()
         set(LIB_TARGET "" PARENT_SCOPE)
     endif()
-
-endfunction()
-
-################################################################################
-# setup_libraries() - Setups all libraries to be built.
-#
-# INPUT = EXTRA_COMPILE_FLAGS - Extra compile flags for the library.
-# INPUT = EXTRA_LINK_FLAGS - Extra link flags for the library.
-# OUTPUT = LIB_TARGETS - Library target list.
-################################################################################
-
-function(setup_libraries EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
-
-    set(LIB_TARGET_LIST "")
-
-    get_property(LIBRARY_PATHS DIRECTORY PROPERTY LINK_DIRECTORIES)
-
-    foreach(LIBRARY_PATH ${LIBRARY_PATHS})
-
-        get_filename_component(FOLDER_NAME "${LIBRARY_PATH}" NAME)
-
-        if("${FOLDER_NAME}" STREQUAL "libraries")
-
-            file(GLOB LIBRARIES RELATIVE "${LIBRARY_PATH}" "${LIBRARY_PATH}/*")
-
-            foreach(LIBRARY ${LIBRARIES})
-                if(IS_DIRECTORY "${LIBRARY_PATH}/${LIBRARY}")
-                    setup_library("${LIBRARY_PATH}/${LIBRARY}"
-                    "${EXTRA_COMPILE_FLAGS}" "${EXTRA_LINK_FLAGS}")
-                    list(APPEND LIB_TARGET_LIST "${LIB_TARGET}")
-                endif()
-            endforeach()
-
-        elseif("${FOLDER_NAME}" STREQUAL "Simple Libraries")
-
-            file(GLOB LIBRARIES "${LIBRARY_PATH}/*")
-
-            foreach(LIBRARY ${LIBRARIES})
-                if(IS_DIRECTORY "${LIBRARY}")
-
-                    file(GLOB LIBS RELATIVE "${LIBRARY}" "${LIBRARY}/*")
-
-                    foreach(LIB ${LIBS})
-                        if(IS_DIRECTORY "${LIBRARY}/${LIB}"
-                        AND (NOT "${LIB}" STREQUAL "html") # HACK!!!
-                        AND (NOT "${LIB}" STREQUAL "ActivityBot")) # HACK!!!
-                            setup_library("${LIBRARY}/${LIB}"
-                            "${EXTRA_COMPILE_FLAGS}" "${EXTRA_LINK_FLAGS}")
-                            list(APPEND LIB_TARGET_LIST "${LIB_TARGET}")
-                        endif()
-                    endforeach()
-
-                endif()
-            endforeach()
-
-        else()
-            message(FATAL_ERROR "Unknown libs type \"${FOLDER_NAME}\"!")
-        endif()
-
-    endforeach()
-
-    set(LIB_TARGETS "${LIB_TARGET_LIST}" PARENT_SCOPE)
 
 endfunction()
 
@@ -533,21 +491,17 @@ endfunction()
 # OUTPUT = EXE_TARGET - Executable target name.
 ################################################################################
 
-function(setup_executable FF_PATH)
-
-    if(IS_DIRECTORY "${FF_PATH}")
-        include_directories("${FF_PATH}")
-    else()
-        get_filename_component(FF_PATH_PATH "${FF_PATH}" DIRECTORY)
-        include_directories("${FF_PATH_PATH}")
-    endif()
+function(setup_executable FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 
     parse_file_or_folder_path("${FF_PATH}")
+    include_directories(${FF_PATH_FOLDERS})
 
     if(FF_PATH_SOURCES)
 
         get_filename_component(FF_PATH_NAME "${FF_PATH}" NAME_WE)
         string(REGEX REPLACE "[^0-9A-Za-z]" "_" FF_PATH_NAME "${FF_PATH_NAME}")
+
+        list(APPEND FF_PATH_SOURCES ${FF_PATH_HEADERS})
         add_executable("${FF_PATH_NAME}" ${FF_PATH_SOURCES})
 
         set_target_properties("${FF_PATH_NAME}" PROPERTIES
@@ -564,37 +518,101 @@ function(setup_executable FF_PATH)
 endfunction()
 
 ################################################################################
+# setup_libraries() - Setups all libraries to be built.
+#
+# INPUT = EXTRA_COMPILE_FLAGS - Extra compile flags for the library.
+# INPUT = EXTRA_LINK_FLAGS - Extra link flags for the library.
+# OUTPUT = LIB_TARGETS - Library target list.
+################################################################################
+
+function(setup_libraries EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
+
+    # Step 1 ###################################################################
+
+    set(LIBRARY_PATH_LIST "")
+
+    get_property(LIBRARY_PATHS DIRECTORY PROPERTY LINK_DIRECTORIES)
+
+    foreach(LIBRARY_PATH ${LIBRARY_PATHS})
+
+        get_filename_component(FOLDER_NAME "${LIBRARY_PATH}" NAME)
+
+        if("${FOLDER_NAME}" STREQUAL "libraries")
+
+            file(GLOB LIBRARIES "${LIBRARY_PATH}/*")
+
+            foreach(LIBRARY ${LIBRARIES})
+                if(IS_DIRECTORY "${LIBRARY}")
+                    list(APPEND LIBRARY_PATH_LIST "${LIBRARY}")
+                endif()
+            endforeach()
+
+        elseif("${FOLDER_NAME}" STREQUAL "Simple Libraries")
+
+            file(GLOB_RECURSE LIBRARIES "${LIBRARY_PATH}/*.side")
+            list(APPEND LIBRARY_PATH_LIST ${LIBRARIES})
+
+        else()
+            message(FATAL_ERROR "Unknown libs type \"${FOLDER_NAME}\"!")
+        endif()
+
+    endforeach()
+
+    list(REMOVE_DUPLICATES LIBRARY_PATH_LIST)
+
+    # Step 2 ###################################################################
+
+    set(LIB_TARGET_LIST "")
+
+    foreach(LIBRARY_PATH ${LIBRARY_PATH_LIST})
+
+        setup_library("${LIBRARY_PATH}"
+        "${EXTRA_COMPILE_FLAGS}" "${EXTRA_LINK_FLAGS}")
+
+        if(LIB_TARGET)
+            list(APPEND LIB_TARGET_LIST "${LIB_TARGET}")
+        endif()
+
+    endforeach()
+
+    set(LIB_TARGETS ${LIB_TARGET_LIST} PARENT_SCOPE)
+
+endfunction()
+
+################################################################################
 # setup_upload() - Setup upload.
 #
-# INPUT = TARGET_NAME - Upload target name.
+# INPUT = TARGET_NAME - Target name.
 ################################################################################
 
 function(setup_upload TARGET_NAME)
 
-    set(UPLOAD_COMMAND "${CMAKE_OBJLOAD}")
+    set(UPLOAD_COMMAND_LIST "-r" "-e")
 
     if(DEFINED ${TARGET_NAME}_BOARD
     AND NOT "${${TARGET_NAME}_BOARD}" STREQUAL "")
-        set(UPLOAD_COMMAND "${UPLOAD_COMMAND} -b ${${TARGET_NAME}_BOARD}")
+        list(APPEND UPLOAD_COMMAND_LIST "-b" "${${TARGET_NAME}_BOARD}")
     endif()
 
     if(DEFINED ${TARGET_NAME}_PORT
     AND NOT "${${TARGET_NAME}_PORT}" STREQUAL "")
-        set(UPLOAD_COMMAND "${UPLOAD_COMMAND} -p ${${TARGET_NAME}_PORT}")
+        list(APPEND UPLOAD_COMMAND_LIST "-p" "${${TARGET_NAME}_PORT}")
     endif()
 
     if(DEFINED ${TARGET_NAME}_CF
     AND NOT "${${TARGET_NAME}_CF}" STREQUAL "")
-        set(UPLOAD_COMMAND "${UPLOAD_COMMAND} -D clkfreq=${${TARGET_NAME}_CF}")
+        list(APPEND UPLOAD_COMMAND_LIST "-D" "clkfreq=${${TARGET_NAME}_CF}")
     endif()
 
     if(DEFINED ${TARGET_NAME}_CM
     AND NOT "${${TARGET_NAME}_CM}" STREQUAL "")
-        set(UPLOAD_COMMAND "${UPLOAD_COMMAND} -D clkmode=${${TARGET_NAME}_CM}")
+        list(APPEND UPLOAD_COMMAND_LIST "-D" "clkmode=${${TARGET_NAME}_CM}")
     endif()
 
-    add_custom_target(upload
-    "${UPLOAD_COMMAND} ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.elf -e -r"
+    add_custom_target("upload"
+    COMMAND "${CMAKE_OBJLOAD}"
+    ${UPLOAD_COMMAND_LIST}
+    "${CMAKE_BINARY_DIR}/${TARGET_NAME}.elf"
     DEPENDS "${TARGET_NAME}")
 
 endfunction()
@@ -602,19 +620,24 @@ endfunction()
 ################################################################################
 # generate_propeller_firmware() - Main Function.
 #
-# INPUT = TARGET_NAME - Target Name.
-# INPUT = ${TARGET_NAME}_SIDE - Side file or folder path.
-# INPUT = ${TARGET_NAME}_SPIN - Spin file list.
-# INPUT = ${TARGET_NAME}_SRCS - C Source file list.
-# INPUT = ${TARGET_NAME}_HDRS - C Header file list.
-# INPUT = ${TARGET_NAME}_BOARD - Target board name.
-# INPUT = ${TARGET_NAME}_PORT - Target port name.
+# INPUT = TARGET_NAME - Target name.
+# INPUT = ${TARGET_NAME}_FPATH - File or folder path.
 # INPUT = ${TARGET_NAME}_MM - Memory model.
-# INPUT = ${TARGET_NAME}_CF - Clock frequency.
-# INPUT = ${TARGET_NAME}_CM - Clock mode.
+# INPUT = ${TARGET_NAME}_BOARD - Board name (optional).
+# INPUT = ${TARGET_NAME}_PORT - Port name (optional).
+# INPUT = ${TARGET_NAME}_CF - Clock frequency (optional).
+# INPUT = ${TARGET_NAME}_CM - Clock mode (optional).
 ################################################################################
 
 function(generate_propeller_firmware TARGET_NAME)
+
+    if(NOT DEFINED ${TARGET_NAME}_FPATH)
+        message(FATAL_ERROR "File or folder path is not defined!")
+    endif()
+
+    if("${${TARGET_NAME}_FPATH}" STREQUAL "")
+        message(FATAL_ERROR "File or folder path is empty!")
+    endif()
 
     if(NOT DEFINED ${TARGET_NAME}_MM)
         message(FATAL_ERROR "Memory model is not defined!")
@@ -626,27 +649,22 @@ function(generate_propeller_firmware TARGET_NAME)
 
     if((NOT "${${TARGET_NAME}_MM}" STREQUAL "cmm")
     AND (NOT "${${TARGET_NAME}_MM}" STREQUAL "lmm"))
-        message(FATAL_ERROR "Unknown memory model \"${${TARGET_NAME}_MM}\"!")
+        message(FATAL_ERROR "Unknown mem model \"${${TARGET_NAME}_MM}\"!")
     endif()
+
+    add_definitions("-D__PROPELLER__")
+    # add_definitions("-Dprintf=__simple_printf")
 
     setup_libraries(
     "-m${${TARGET_NAME}_MM}"
     "-m${${TARGET_NAME}_MM}")
 
-    if(DEFINED ${TARGET_NAME}_SIDE
-    AND NOT "${${TARGET_NAME}_SIDE}" STREQUAL "")
+    setup_executable("${${TARGET_NAME}_FPATH}"
+    "-m${${TARGET_NAME}_MM}"
+    "-m${${TARGET_NAME}_MM}")
 
-        setup_executable("${${TARGET_NAME}_SIDE}"
-        "-m${${TARGET_NAME}_MM}"
-        "-m${${TARGET_NAME}_MM}")
-
-        target_link_libraries("${EXE_TARGET}" ${LIB_TARGETS})
-
-        # setup_upload("${EXE_TARGET}")
-
-    else()
-        message(FATAL_ERROR "Need side...")
-    endif()
+    target_link_libraries("${EXE_TARGET}" ${LIB_TARGETS})
+    setup_upload("${EXE_TARGET}")
 
 endfunction()
 
