@@ -663,7 +663,9 @@ function(generate_propeller_firmware TARGET_NAME)
     "-m${${TARGET_NAME}_MM}"
     "-m${${TARGET_NAME}_MM}")
 
-    target_link_libraries("${EXE_TARGET}" ${LIB_TARGETS})
+    target_link_libraries("${EXE_TARGET}"
+    "-Wl,--start-group" ${LIB_TARGETS} "-Wl,--end-group")
+
     setup_upload("${EXE_TARGET}")
 
 endfunction()
