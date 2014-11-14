@@ -116,6 +116,9 @@ find_program(CMAKE_OBJDUMP NAMES "propeller-elf-objdump")
 find_program(CMAKE_OBJLOAD NAMES "propeller-load")
 find_program(CMAKE_OBJSPIN NAMES "openspin")
 
+find_program(CMAKE_OBJSIZE_BIN NAMES "propeller-bin-size.cmake")
+find_program(CMAKE_OBJSIZE_ELF NAMES "propeller-elf-size.cmake")
+
 ################################################################################
 # generate_cogc_object() - Compiles cogc source into a linkable cogc object.
 #
@@ -148,6 +151,7 @@ function(generate_cogc_object COGC_FILE)
     EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
     separate_arguments(COGC_FLAGS)
+
     get_filename_component(COGC_FILE_OBJ_NAME "${COGC_FILE_OBJ}" NAME)
 
     add_custom_command(OUTPUT "${COGC_FILE_OBJ}"
@@ -158,7 +162,8 @@ function(generate_cogc_object COGC_FILE)
     COMMAND "${CMAKE_OBJCOPY}"
     ARGS --localize-text --rename-section
     ARGS .text="${COGC_FILE_OBJ_NAME}"
-    ARGS "${COGC_FILE_OBJ}")
+    ARGS "${COGC_FILE_OBJ}"
+    DEPENDS "${COGC_FILE}")
 
     set(COGC_FILE_OBJECT "${COGC_FILE_OBJ}" PARENT_SCOPE)
 
@@ -197,7 +202,8 @@ function(generate_spin_object SPIN_FILE)
     COMMAND "${CMAKE_OBJCOPY}"
     ARGS -I binary -B propeller -O propeller-elf-gcc
     ARGS "${SPIN_FILE_OBJ}"
-    ARGS "${SPIN_FILE_OBJ}")
+    ARGS "${SPIN_FILE_OBJ}"
+    DEPENDS "${SPIN_FILE}")
 
     set(SPIN_FILE_OBJECT "${SPIN_FILE_OBJ}" PARENT_SCOPE)
 
@@ -278,6 +284,20 @@ function(parse_side_file SIDE_FILE)
     list(REMOVE_DUPLICATES SIDE_FILE_SOURCE_LIST)
     list(REMOVE_DUPLICATES SIDE_FILE_HEADER_LIST)
     list(REMOVE_DUPLICATES SIDE_FILE_FOLDER_LIST)
+
+    # foreach(SIDE_FILE_SOURCE ${SIDE_FILE_SOURCE_LIST})
+        # get_source_file_property(OBJ_DEPS "${SIDE_FILE_SOURCE}" OBJECT_DEPENDS)
+        # list(APPEND OBJ_DEPS "${SIDE_FILE}")
+        # set_source_files_properties("${SIDE_FILE_SOURCE}" PROPERTIES
+        # OBJECT_DEPENDS "${OBJ_DEPS}")
+    # endforeach()
+
+    # foreach(SIDE_FILE_HEADER ${SIDE_FILE_HEADER_LIST})
+        # get_source_file_property(OBJ_DEPS "${SIDE_FILE_HEADER}" OBJECT_DEPENDS)
+        # list(APPEND OBJ_DEPS "${SIDE_FILE}")
+        # set_source_files_properties("${SIDE_FILE_HEADER}" PROPERTIES
+        # OBJECT_DEPENDS "${OBJ_DEPS}")
+    # endforeach()
 
     set(SIDE_FILE_SOURCES ${SIDE_FILE_SOURCE_LIST} PARENT_SCOPE)
     set(SIDE_FILE_HEADERS ${SIDE_FILE_HEADER_LIST} PARENT_SCOPE)
@@ -518,20 +538,19 @@ function(setup_executable FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 endfunction()
 
 ################################################################################
-# setup_libraries() - Setups all libraries to be built.
+# setup_libraries() - Setup all libraries to be built.
 #
+# INPUT = LIBRARY_PATHS - Library root folder paths.
 # INPUT = EXTRA_COMPILE_FLAGS - Extra compile flags for the library.
 # INPUT = EXTRA_LINK_FLAGS - Extra link flags for the library.
 # OUTPUT = LIB_TARGETS - Library target list.
 ################################################################################
 
-function(setup_libraries EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
+function(setup_libraries LIBRARY_PATHS EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 
     # Step 1 ###################################################################
 
     set(LIBRARY_PATH_LIST "")
-
-    get_property(LIBRARY_PATHS DIRECTORY PROPERTY LINK_DIRECTORIES)
 
     foreach(LIBRARY_PATH ${LIBRARY_PATHS})
 
@@ -580,6 +599,24 @@ function(setup_libraries EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 endfunction()
 
 ################################################################################
+# setup_size() - Setup size.
+#
+# INPUT = TARGET_NAME - Target name.
+################################################################################
+
+function(setup_size TARGET_NAME)
+
+    find_program(PROPELLER_ELF_SIZE "propeller-elf-size")
+
+    add_custom_command(TARGET "${TARGET_NAME}" POST_BUILD
+    COMMAND "${CMAKE_COMMAND}"
+    ARGS "-DELF_FILE_PATH=\"${CMAKE_BINARY_DIR}/${TARGET_NAME}.elf\""
+    "-DPROPELLER_ELF_SIZE=\"${PROPELLER_ELF_SIZE}\""
+    -P "${CMAKE_OBJSIZE_ELF}")
+
+endfunction()
+
+################################################################################
 # setup_upload() - Setup upload.
 #
 # INPUT = TARGET_NAME - Target name.
@@ -621,6 +658,7 @@ endfunction()
 # generate_propeller_firmware() - Main Function.
 #
 # INPUT = TARGET_NAME - Target name.
+# INPUT = ${PROJECT_NAME}_LIBS - Library root folder paths.
 # INPUT = ${TARGET_NAME}_FPATH - File or folder path.
 # INPUT = ${TARGET_NAME}_MM - Memory model.
 # INPUT = ${TARGET_NAME}_BOARD - Board name (optional).
@@ -652,10 +690,9 @@ function(generate_propeller_firmware TARGET_NAME)
         message(FATAL_ERROR "Unknown mem model \"${${TARGET_NAME}_MM}\"!")
     endif()
 
-    add_definitions("-D__PROPELLER__")
-    # add_definitions("-Dprintf=__simple_printf")
+    add_definitions("-D__PROPELLER__" "")
 
-    setup_libraries(
+    setup_libraries("${${PROJECT_NAME}_LIBS}"
     "-m${${TARGET_NAME}_MM}"
     "-m${${TARGET_NAME}_MM}")
 
@@ -666,6 +703,7 @@ function(generate_propeller_firmware TARGET_NAME)
     target_link_libraries("${EXE_TARGET}"
     "-Wl,--start-group" ${LIB_TARGETS} "-Wl,--end-group")
 
+    setup_size("${EXE_TARGET}")
     setup_upload("${EXE_TARGET}")
 
 endfunction()

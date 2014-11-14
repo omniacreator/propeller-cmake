@@ -44,13 +44,15 @@ else()
 endif()
 
 if(EXISTS "${PROPELLER_SDK_PATH}/propeller-gcc")
-    list(APPEND CMAKE_SYSTEM_PREFIX_PATH "${PROPELLER_SDK_PATH}/propeller-gcc")
+    list(APPEND CMAKE_PREFIX_PATH "${PROPELLER_SDK_PATH}/propeller-gcc")
 else()
     message(FATAL_ERROR
     "\"${PROPELLER_SDK_PATH}/propeller-gcc\" not found!")
 endif()
 
-set(CMAKE_FIND_ROOT_PATH "${PROPELLER_SDK_PATH}/propeller-gcc")
+set(BINELF_DIR "${CMAKE_CURRENT_LIST_DIR}/..")
+get_filename_component(BINELF_DIR "${BINELF_DIR}" ABSOLUTE)
+list(APPEND CMAKE_PROGRAM_PATH "${BINELF_DIR}")
 
 ################################################################################
 # @file
