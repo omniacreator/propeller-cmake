@@ -110,14 +110,21 @@ set(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO
 
 # Executable Paths #############################################################
 
-find_program(CMAKE_OBJCOPY NAMES "propeller-elf-objcopy")
-find_program(CMAKE_OBJDUMP NAMES "propeller-elf-objdump")
+find_program(CMAKE_OBJCOPY "propeller-elf-objcopy")
+find_program(CMAKE_OBJDUMP "propeller-elf-objdump")
 
-find_program(CMAKE_OBJLOAD NAMES "propeller-load")
-find_program(CMAKE_OBJSPIN NAMES "openspin")
+find_program(OPENSPIN "openspin")
 
-find_program(CMAKE_OBJSIZE_BIN NAMES "propeller-bin-size.cmake")
-find_program(CMAKE_OBJSIZE_ELF NAMES "propeller-elf-size.cmake")
+# Size Stuff ###################################################################
+
+find_program(PROPELLER_ELF_SIZE "propeller-elf-size")
+
+find_program(PROPELLER_BIN_SIZE_SCRIPT "propeller-bin-size.cmake")
+find_program(PROPELLER_ELF_SIZE_SCRIPT "propeller-elf-size.cmake")
+
+# Upload Stuff #################################################################
+
+find_program(PROPELLER_LOAD "propeller-load")
 
 ################################################################################
 # generate_cogc_object() - Compiles cogc source into a linkable cogc object.
@@ -133,10 +140,10 @@ function(generate_cogc_object COGC_FILE)
 
     if("${COGC_FILE_EXT}" STREQUAL ".cogc")
         set(COGC_COMPILIER "${CMAKE_C_COMPILER}")
-        set(COGC_FLAGS "${CMAKE_C_FLAGS} -xc -mcog -r")
+        set(COGC_FLAGS "${CMAKE_C_FLAGS} -mcog -r -xc")
     elseif("${COGC_FILE_EXT}" STREQUAL ".cogcpp")
         set(COGC_COMPILIER "${CMAKE_CXX_COMPILER}")
-        set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -xc++ -mcog -r")
+        set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -mcog -r -xc++")
     else()
         message(FATAL_ERROR "Unknown file type \"${COGC_FILE_EXT}\"!")
     endif()
@@ -150,9 +157,9 @@ function(generate_cogc_object COGC_FILE)
     set_source_files_properties("${COGC_FILE_OBJ}" PROPERTIES
     EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
-    separate_arguments(COGC_FLAGS)
+    get_filename_component(COGC_FILE_OBJ_NAME "${COGC_FILE_OBJ}" NAME_WE)
 
-    get_filename_component(COGC_FILE_OBJ_NAME "${COGC_FILE_OBJ}" NAME)
+    separate_arguments(COGC_FLAGS)
 
     add_custom_command(OUTPUT "${COGC_FILE_OBJ}"
     COMMAND "${COGC_COMPILIER}"
@@ -161,7 +168,7 @@ function(generate_cogc_object COGC_FILE)
     ARGS -c "${COGC_FILE}"
     COMMAND "${CMAKE_OBJCOPY}"
     ARGS --localize-text --rename-section
-    ARGS .text="${COGC_FILE_OBJ_NAME}"
+    ARGS .text="${COGC_FILE_OBJ_NAME}.cog"
     ARGS "${COGC_FILE_OBJ}"
     DEPENDS "${COGC_FILE}")
 
@@ -194,15 +201,28 @@ function(generate_spin_object SPIN_FILE)
     set_source_files_properties("${SPIN_FILE_OBJ}" PROPERTIES
     EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
+    get_filename_component(SPIN_FILE_OBJ_PATH "${SPIN_FILE_OBJ}" DIRECTORY)
+    get_filename_component(SPIN_FILE_OBJ_NAME "${SPIN_FILE_OBJ}" NAME_WE)
+
+    set(SPIN_FILE_DAT "${SPIN_FILE_OBJ_PATH}/${SPIN_FILE_OBJ_NAME}.dat")
+    get_filename_component(SPIN_FILE_DAT_NAME "${SPIN_FILE_DAT}" NAME)
+
+    get_filename_component(SPATH "${SPIN_FILE}" DIRECTORY)
+
     add_custom_command(OUTPUT "${SPIN_FILE_OBJ}"
-    COMMAND "${CMAKE_OBJSPIN}"
+    COMMAND "${OPENSPIN}"
     ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
-    ARGS -o "${SPIN_FILE_OBJ}"
+    ARGS -I "${SPATH}"
+    ARGS -o "${SPIN_FILE_DAT}"
     ARGS -c "${SPIN_FILE}"
-    COMMAND "${CMAKE_OBJCOPY}"
+    COMMAND "${CMAKE_COMMAND}"
+    ARGS -E chdir "${SPIN_FILE_OBJ_PATH}"
+    ARGS "${CMAKE_OBJCOPY}"
     ARGS -I binary -B propeller -O propeller-elf-gcc
+    ARGS "${SPIN_FILE_DAT_NAME}"
     ARGS "${SPIN_FILE_OBJ}"
-    ARGS "${SPIN_FILE_OBJ}"
+    COMMAND "${CMAKE_COMMAND}"
+    ARGS -E remove "${SPIN_FILE_DAT}"
     DEPENDS "${SPIN_FILE}")
 
     set(SPIN_FILE_OBJECT "${SPIN_FILE_OBJ}" PARENT_SCOPE)
@@ -285,19 +305,37 @@ function(parse_side_file SIDE_FILE)
     list(REMOVE_DUPLICATES SIDE_FILE_HEADER_LIST)
     list(REMOVE_DUPLICATES SIDE_FILE_FOLDER_LIST)
 
-    # foreach(SIDE_FILE_SOURCE ${SIDE_FILE_SOURCE_LIST})
-        # get_source_file_property(OBJ_DEPS "${SIDE_FILE_SOURCE}" OBJECT_DEPENDS)
-        # list(APPEND OBJ_DEPS "${SIDE_FILE}")
-        # set_source_files_properties("${SIDE_FILE_SOURCE}" PROPERTIES
-        # OBJECT_DEPENDS "${OBJ_DEPS}")
-    # endforeach()
+    foreach(SIDE_FILE_SOURCE ${SIDE_FILE_SOURCE_LIST})
 
-    # foreach(SIDE_FILE_HEADER ${SIDE_FILE_HEADER_LIST})
-        # get_source_file_property(OBJ_DEPS "${SIDE_FILE_HEADER}" OBJECT_DEPENDS)
-        # list(APPEND OBJ_DEPS "${SIDE_FILE}")
-        # set_source_files_properties("${SIDE_FILE_HEADER}" PROPERTIES
-        # OBJECT_DEPENDS "${OBJ_DEPS}")
-    # endforeach()
+        set(DEP_LIST "${SIDE_FILE}")
+
+        get_source_file_property(OBJ_DEPS "${SIDE_FILE_SOURCE}" OBJECT_DEPENDS)
+
+        if(OBJ_DEPS)
+            list(APPEND DEP_LIST "${OBJ_DEPS}")
+        endif()
+
+        list(REMOVE_DUPLICATES DEP_LIST)
+        set_source_files_properties("${SIDE_FILE_SOURCE}" PROPERTIES
+        OBJECT_DEPENDS "${DEP_LIST}")
+
+    endforeach()
+
+    foreach(SIDE_FILE_HEADER ${SIDE_FILE_HEADER_LIST})
+
+        set(DEP_LIST "${SIDE_FILE}")
+
+        get_source_file_property(OBJ_DEPS "${SIDE_FILE_HEADER}" OBJECT_DEPENDS)
+
+        if(OBJ_DEPS)
+            list(APPEND DEP_LIST "${OBJ_DEPS}")
+        endif()
+
+        list(REMOVE_DUPLICATES DEP_LIST)
+        set_source_files_properties("${SIDE_FILE_HEADER}" PROPERTIES
+        OBJECT_DEPENDS "${DEP_LIST}")
+
+    endforeach()
 
     set(SIDE_FILE_SOURCES ${SIDE_FILE_SOURCE_LIST} PARENT_SCOPE)
     set(SIDE_FILE_HEADERS ${SIDE_FILE_HEADER_LIST} PARENT_SCOPE)
@@ -365,7 +403,7 @@ function(parse_file_or_folder_path FF_PATH)
             endforeach()
 
             file(GLOB_RECURSE SPIN_FILES
-            "${LIBRARY_PATH}/*.spin")
+            "${FF_PATH}/*.spin")
 
             foreach(SPIN_FILE ${SPIN_FILES})
 
@@ -538,6 +576,113 @@ function(setup_executable FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 endfunction()
 
 ################################################################################
+# setup_bin_size() - Setup size.
+#
+# INPUT = TARGET_NAME - Target name.
+################################################################################
+
+function(setup_bin_size TARGET_NAME)
+
+    add_custom_command(TARGET "${TARGET_NAME}" POST_BUILD
+    COMMAND "${CMAKE_COMMAND}"
+    ARGS "-DBIN_FILE_PATH=\"${CMAKE_BINARY_DIR}/${TARGET_NAME}.binary\""
+    -P "${PROPELLER_BIN_SIZE_SCRIPT}")
+
+endfunction()
+
+################################################################################
+# setup_elf_size() - Setup size.
+#
+# INPUT = TARGET_NAME - Target name.
+################################################################################
+
+function(setup_elf_size TARGET_NAME)
+
+    add_custom_command(TARGET "${TARGET_NAME}" POST_BUILD
+    COMMAND "${CMAKE_COMMAND}"
+    ARGS "-DELF_FILE_PATH=\"${CMAKE_BINARY_DIR}/${TARGET_NAME}.elf\""
+    "-DPROPELLER_ELF_SIZE=\"${PROPELLER_ELF_SIZE}\""
+    -P "${PROPELLER_ELF_SIZE_SCRIPT}")
+
+endfunction()
+
+################################################################################
+# setup_bin_upload() - Setup upload.
+#
+# INPUT = TARGET_NAME - Target name.
+################################################################################
+
+function(setup_bin_upload TARGET_NAME)
+
+    set(UPLOAD_COMMAND_LIST "-r" "-e")
+
+    if((DEFINED ${TARGET_NAME}_BOARD)
+    AND (NOT "${${TARGET_NAME}_BOARD}" STREQUAL ""))
+        list(APPEND UPLOAD_COMMAND_LIST "-b" "${${TARGET_NAME}_BOARD}")
+    endif()
+
+    if((DEFINED ${TARGET_NAME}_PORT)
+    AND (NOT "${${TARGET_NAME}_PORT}" STREQUAL ""))
+        list(APPEND UPLOAD_COMMAND_LIST "-p" "${${TARGET_NAME}_PORT}")
+    endif()
+
+    if((DEFINED ${TARGET_NAME}_CF)
+    AND (NOT "${${TARGET_NAME}_CF}" STREQUAL ""))
+        list(APPEND UPLOAD_COMMAND_LIST "-D" "clkfreq=${${TARGET_NAME}_CF}")
+    endif()
+
+    if((DEFINED ${TARGET_NAME}_CM)
+    AND (NOT "${${TARGET_NAME}_CM}" STREQUAL ""))
+        list(APPEND UPLOAD_COMMAND_LIST "-D" "clkmode=${${TARGET_NAME}_CM}")
+    endif()
+
+    add_custom_target("upload"
+    COMMAND "${PROPELLER_LOAD}"
+    ${UPLOAD_COMMAND_LIST}
+    "${CMAKE_BINARY_DIR}/${TARGET_NAME}.binary"
+    DEPENDS "${TARGET_NAME}")
+
+endfunction()
+
+################################################################################
+# setup_elf_upload() - Setup upload.
+#
+# INPUT = TARGET_NAME - Target name.
+################################################################################
+
+function(setup_elf_upload TARGET_NAME)
+
+    set(UPLOAD_COMMAND_LIST "-r" "-e")
+
+    if((DEFINED ${TARGET_NAME}_BOARD)
+    AND (NOT "${${TARGET_NAME}_BOARD}" STREQUAL ""))
+        list(APPEND UPLOAD_COMMAND_LIST "-b" "${${TARGET_NAME}_BOARD}")
+    endif()
+
+    if((DEFINED ${TARGET_NAME}_PORT)
+    AND (NOT "${${TARGET_NAME}_PORT}" STREQUAL ""))
+        list(APPEND UPLOAD_COMMAND_LIST "-p" "${${TARGET_NAME}_PORT}")
+    endif()
+
+    if((DEFINED ${TARGET_NAME}_CF)
+    AND (NOT "${${TARGET_NAME}_CF}" STREQUAL ""))
+        list(APPEND UPLOAD_COMMAND_LIST "-D" "clkfreq=${${TARGET_NAME}_CF}")
+    endif()
+
+    if((DEFINED ${TARGET_NAME}_CM)
+    AND (NOT "${${TARGET_NAME}_CM}" STREQUAL ""))
+        list(APPEND UPLOAD_COMMAND_LIST "-D" "clkmode=${${TARGET_NAME}_CM}")
+    endif()
+
+    add_custom_target("upload"
+    COMMAND "${PROPELLER_LOAD}"
+    ${UPLOAD_COMMAND_LIST}
+    "${CMAKE_BINARY_DIR}/${TARGET_NAME}.elf"
+    DEPENDS "${TARGET_NAME}")
+
+endfunction()
+
+################################################################################
 # setup_libraries() - Setup all libraries to be built.
 #
 # INPUT = LIBRARY_PATHS - Library root folder paths.
@@ -599,66 +744,10 @@ function(setup_libraries LIBRARY_PATHS EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 endfunction()
 
 ################################################################################
-# setup_size() - Setup size.
-#
-# INPUT = TARGET_NAME - Target name.
-################################################################################
-
-function(setup_size TARGET_NAME)
-
-    find_program(PROPELLER_ELF_SIZE "propeller-elf-size")
-
-    add_custom_command(TARGET "${TARGET_NAME}" POST_BUILD
-    COMMAND "${CMAKE_COMMAND}"
-    ARGS "-DELF_FILE_PATH=\"${CMAKE_BINARY_DIR}/${TARGET_NAME}.elf\""
-    "-DPROPELLER_ELF_SIZE=\"${PROPELLER_ELF_SIZE}\""
-    -P "${CMAKE_OBJSIZE_ELF}")
-
-endfunction()
-
-################################################################################
-# setup_upload() - Setup upload.
-#
-# INPUT = TARGET_NAME - Target name.
-################################################################################
-
-function(setup_upload TARGET_NAME)
-
-    set(UPLOAD_COMMAND_LIST "-r" "-e")
-
-    if(DEFINED ${TARGET_NAME}_BOARD
-    AND NOT "${${TARGET_NAME}_BOARD}" STREQUAL "")
-        list(APPEND UPLOAD_COMMAND_LIST "-b" "${${TARGET_NAME}_BOARD}")
-    endif()
-
-    if(DEFINED ${TARGET_NAME}_PORT
-    AND NOT "${${TARGET_NAME}_PORT}" STREQUAL "")
-        list(APPEND UPLOAD_COMMAND_LIST "-p" "${${TARGET_NAME}_PORT}")
-    endif()
-
-    if(DEFINED ${TARGET_NAME}_CF
-    AND NOT "${${TARGET_NAME}_CF}" STREQUAL "")
-        list(APPEND UPLOAD_COMMAND_LIST "-D" "clkfreq=${${TARGET_NAME}_CF}")
-    endif()
-
-    if(DEFINED ${TARGET_NAME}_CM
-    AND NOT "${${TARGET_NAME}_CM}" STREQUAL "")
-        list(APPEND UPLOAD_COMMAND_LIST "-D" "clkmode=${${TARGET_NAME}_CM}")
-    endif()
-
-    add_custom_target("upload"
-    COMMAND "${CMAKE_OBJLOAD}"
-    ${UPLOAD_COMMAND_LIST}
-    "${CMAKE_BINARY_DIR}/${TARGET_NAME}.elf"
-    DEPENDS "${TARGET_NAME}")
-
-endfunction()
-
-################################################################################
 # generate_propeller_firmware() - Main Function.
 #
 # INPUT = TARGET_NAME - Target name.
-# INPUT = ${PROJECT_NAME}_LIBS - Library root folder paths.
+# INPUT = ${TARGET_NAME}_LIBS - Library root folder paths.
 # INPUT = ${TARGET_NAME}_FPATH - File or folder path.
 # INPUT = ${TARGET_NAME}_MM - Memory model.
 # INPUT = ${TARGET_NAME}_BOARD - Board name (optional).
@@ -677,6 +766,43 @@ function(generate_propeller_firmware TARGET_NAME)
         message(FATAL_ERROR "File or folder path is empty!")
     endif()
 
+    if(NOT IS_DIRECTORY "${${TARGET_NAME}_FPATH}")
+
+        get_filename_component(FILE_TYPE "${${TARGET_NAME}_FPATH}" EXT)
+        string(TOLOWER "${FILE_TYPE}" FILE_TYPE)
+
+        if("${FILE_TYPE}" STREQUAL ".spin")
+
+            get_filename_component(FILE_NAME "${${TARGET_NAME}_FPATH}" NAME_WE)
+            string(REGEX REPLACE "[^0-9A-Za-z]" "_" FILE_NAME "${FILE_NAME}")
+
+            set(FILE_NAME_BINARY "${CMAKE_BINARY_DIR}/${FILE_NAME}.binary")
+
+            set_source_files_properties("${FILE_NAME_BINARY}" PROPERTIES
+            EXTERNAL_OBJECT TRUE GENERATED TRUE)
+
+            get_filename_component(SPATH "${${TARGET_NAME}_FPATH}" DIRECTORY)
+
+            add_custom_command(OUTPUT "${FILE_NAME_BINARY}"
+            COMMAND "${OPENSPIN}"
+            ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
+            ARGS -I "${SPATH}"
+            ARGS -o "${FILE_NAME_BINARY}"
+            ARGS -b "${${TARGET_NAME}_FPATH}"
+            DEPENDS "${${TARGET_NAME}_FPATH}")
+
+            add_custom_target("${FILE_NAME}" ALL
+            DEPENDS "${FILE_NAME_BINARY}")
+
+            setup_bin_size("${FILE_NAME}")
+            setup_bin_upload("${FILE_NAME}")
+
+            return()
+
+        endif()
+
+    endif()
+
     if(NOT DEFINED ${TARGET_NAME}_MM)
         message(FATAL_ERROR "Memory model is not defined!")
     endif()
@@ -690,21 +816,29 @@ function(generate_propeller_firmware TARGET_NAME)
         message(FATAL_ERROR "Unknown mem model \"${${TARGET_NAME}_MM}\"!")
     endif()
 
-    add_definitions("-D__PROPELLER__" "")
+    add_definitions("-D__PROPELLER__")
 
-    setup_libraries("${${PROJECT_NAME}_LIBS}"
-    "-m${${TARGET_NAME}_MM}"
-    "-m${${TARGET_NAME}_MM}")
+    if((DEFINED ${TARGET_NAME}_LIBS) AND ${TARGET_NAME}_LIBS)
+        setup_libraries("${${TARGET_NAME}_LIBS}"
+        "-m${${TARGET_NAME}_MM}"
+        "-m${${TARGET_NAME}_MM}")
+    endif()
 
     setup_executable("${${TARGET_NAME}_FPATH}"
     "-m${${TARGET_NAME}_MM}"
     "-m${${TARGET_NAME}_MM}")
 
-    target_link_libraries("${EXE_TARGET}"
-    "-Wl,--start-group" ${LIB_TARGETS} "-Wl,--end-group")
+    if(NOT "${EXE_TARGET}" STREQUAL "")
 
-    setup_size("${EXE_TARGET}")
-    setup_upload("${EXE_TARGET}")
+        if((DEFINED LIB_TARGETS) AND LIB_TARGETS)
+            target_link_libraries("${EXE_TARGET}"
+            "-Wl,--start-group" ${LIB_TARGETS} "-Wl,--end-group")
+        endif()
+
+        setup_elf_size("${EXE_TARGET}")
+        setup_elf_upload("${EXE_TARGET}")
+
+    endif()
 
 endfunction()
 
