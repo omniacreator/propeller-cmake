@@ -140,10 +140,10 @@ function(generate_cogc_object COGC_FILE)
 
     if("${COGC_FILE_EXT}" STREQUAL ".cogc")
         set(COGC_COMPILIER "${CMAKE_C_COMPILER}")
-        set(COGC_FLAGS "${CMAKE_C_FLAGS} -mcog -r -xc")
+        set(COGC_FLAGS "${CMAKE_C_FLAGS} -Os -mcog -r -xc")
     elseif("${COGC_FILE_EXT}" STREQUAL ".cogcpp")
         set(COGC_COMPILIER "${CMAKE_CXX_COMPILER}")
-        set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -mcog -r -xc++")
+        set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -Os -mcog -r -xc++")
     else()
         message(FATAL_ERROR "Unknown file type \"${COGC_FILE_EXT}\"!")
     endif()
@@ -168,7 +168,7 @@ function(generate_cogc_object COGC_FILE)
     ARGS -c "${COGC_FILE}"
     COMMAND "${CMAKE_OBJCOPY}"
     ARGS --localize-text --rename-section
-    ARGS .text="${COGC_FILE_OBJ_NAME}.cog"
+    ARGS .text=".${COGC_FILE_OBJ_NAME}.cog"
     ARGS "${COGC_FILE_OBJ}"
     DEPENDS "${COGC_FILE}")
 
@@ -831,8 +831,32 @@ function(generate_propeller_firmware TARGET_NAME)
     if(NOT "${EXE_TARGET}" STREQUAL "")
 
         if((DEFINED LIB_TARGETS) AND LIB_TARGETS)
+
+            foreach(LIB_TARGET ${LIB_TARGETS})
+
+                get_target_property(LIB_SOURCES "${LIB_TARGET}" SOURCES)
+
+                foreach(LIB_SOURCE ${LIB_SOURCES})
+
+                    get_filename_component(LIB_SOURCE_EXT "${LIB_SOURCE}" EXT)
+
+                    # Help the linker see cogc symbols...
+                    if("${LIB_SOURCE_EXT}" STREQUAL ".cogc.obj")
+                        list(APPEND LIB_TARGETS "${LIB_SOURCE}")
+                    endif()
+
+                    # Help the linker see spin symbols...
+                    if("${LIB_SOURCE_EXT}" STREQUAL ".spin.obj")
+                        list(APPEND LIB_TARGETS "${LIB_SOURCE}")
+                    endif()
+
+                endforeach()
+
+            endforeach()
+
             target_link_libraries("${EXE_TARGET}"
             "-Wl,--start-group" ${LIB_TARGETS} "-Wl,--end-group")
+
         endif()
 
         setup_elf_size("${EXE_TARGET}")
