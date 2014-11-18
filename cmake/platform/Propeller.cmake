@@ -18,45 +18,47 @@
 cmake_minimum_required(VERSION "2.8")
 cmake_policy(VERSION "2.8")
 
+cmake_policy(SET "CMP0045" OLD)
+
 # C Flags ######################################################################
 
 set(PROPELLER_C_FLAGS
-"-ffunction-sections -fdata-sections -m32bit-doubles -Wall -std=c99")
+"-ffunction-sections -fdata-sections -m32bit-doubles -Wall")
 
 set(CMAKE_C_FLAGS
-"-g -Os ${PROPELLER_C_FLAGS}")
+"-g -Os ${PROPELLER_C_FLAGS} -std=c99")
 
 set(CMAKE_C_FLAGS_DEBUG
-"-g ${PROPELLER_C_FLAGS}")
+"-g ${PROPELLER_C_FLAGS} -std=c99")
 
 set(CMAKE_C_FLAGS_MINSIZEREL
-"-Os -DNDEBUG ${PROPELLER_C_FLAGS}")
+"-Os -DNDEBUG ${PROPELLER_C_FLAGS} -std=c99")
 
 set(CMAKE_C_FLAGS_RELEASE
-"-Os -DNDEBUG -w ${PROPELLER_C_FLAGS}")
+"-Os -DNDEBUG -w ${PROPELLER_C_FLAGS} -std=c99")
 
 set(CMAKE_C_FLAGS_RELWITHDEBINFO
-"-Os -g -w ${PROPELLER_C_FLAGS}")
+"-Os -g -w ${PROPELLER_C_FLAGS} -std=c99")
 
 # C++ Flags ####################################################################
 
 set(PROPELLER_CXX_FLAGS
-"${PROPELLER_C_FLAGS} -fno-exceptions -fno-rtti -std=gnu++0x")
+"${PROPELLER_C_FLAGS} -fno-exceptions -fno-rtti")
 
 set(CMAKE_CXX_FLAGS
-"-g -Os ${PROPELLER_CXX_FLAGS}")
+"-g -Os ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
 
 set(CMAKE_CXX_FLAGS_DEBUG
-"-g ${PROPELLER_CXX_FLAGS}")
+"-g ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
 
 set(CMAKE_CXX_FLAGS_MINSIZEREL
-"-Os -DNDEBUG ${PROPELLER_CXX_FLAGS}")
+"-Os -DNDEBUG ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
 
 set(CMAKE_CXX_FLAGS_RELEASE
-"-Os -DNDEBUG ${PROPELLER_CXX_FLAGS}")
+"-Os -DNDEBUG ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
 
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-"-Os -g ${PROPELLER_CXX_FLAGS}")
+"-Os -g ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
 
 # Linker Flags #################################################################
 
@@ -210,7 +212,7 @@ function(generate_spin_object SPIN_FILE)
     get_filename_component(SPATH "${SPIN_FILE}" DIRECTORY)
 
     add_custom_command(OUTPUT "${SPIN_FILE_OBJ}"
-    COMMAND "${OPENSPIN}"
+    COMMAND "${OPENSPIN}" -q
     ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
     ARGS -I "${SPATH}"
     ARGS -o "${SPIN_FILE_DAT}"
@@ -524,19 +526,27 @@ function(setup_library FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
         get_filename_component(FF_PATH_NAME "${FF_PATH}" NAME_WE)
         string(REGEX REPLACE "[^0-9A-Za-z]" "_" FF_PATH_NAME "${FF_PATH_NAME}")
 
-        list(APPEND FF_PATH_SOURCES ${FF_PATH_HEADERS})
-        add_library("${FF_PATH_NAME}" STATIC ${FF_PATH_SOURCES})
+        get_target_property(TARGET_FOUND "${FF_PATH_NAME}" NAME)
 
-        set_target_properties("${FF_PATH_NAME}" PROPERTIES
-        COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
-        LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
-        SUFFIX ".a")
+        if(NOT "${TARGET_FOUND}")
 
-        set(LIB_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
+            list(APPEND FF_PATH_SOURCES ${FF_PATH_HEADERS})
+            add_library("${FF_PATH_NAME}" STATIC ${FF_PATH_SOURCES})
 
-    else()
-        set(LIB_TARGET "" PARENT_SCOPE)
+            set_target_properties("${FF_PATH_NAME}" PROPERTIES
+            COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
+            LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
+            SUFFIX ".a")
+
+            set(LIB_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
+
+            return()
+
+        endif()
+
     endif()
+
+    set(LIB_TARGET "" PARENT_SCOPE)
 
 endfunction()
 
@@ -559,19 +569,27 @@ function(setup_executable FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
         get_filename_component(FF_PATH_NAME "${FF_PATH}" NAME_WE)
         string(REGEX REPLACE "[^0-9A-Za-z]" "_" FF_PATH_NAME "${FF_PATH_NAME}")
 
-        list(APPEND FF_PATH_SOURCES ${FF_PATH_HEADERS})
-        add_executable("${FF_PATH_NAME}" ${FF_PATH_SOURCES})
+        get_target_property(TARGET_FOUND "${FF_PATH_NAME}" NAME)
 
-        set_target_properties("${FF_PATH_NAME}" PROPERTIES
-        COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
-        LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
-        SUFFIX ".elf")
+        if(NOT "${TARGET_FOUND}")
 
-        set(EXE_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
+            list(APPEND FF_PATH_SOURCES ${FF_PATH_HEADERS})
+            add_executable("${FF_PATH_NAME}" ${FF_PATH_SOURCES})
 
-    else()
-        set(EXE_TARGET "" PARENT_SCOPE)
+            set_target_properties("${FF_PATH_NAME}" PROPERTIES
+            COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
+            LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
+            SUFFIX ".elf")
+
+            set(EXE_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
+
+            return()
+
+        endif()
+
     endif()
+
+    set(EXE_TARGET "" PARENT_SCOPE)
 
 endfunction()
 
@@ -784,7 +802,7 @@ function(generate_propeller_firmware TARGET_NAME)
             get_filename_component(SPATH "${${TARGET_NAME}_FPATH}" DIRECTORY)
 
             add_custom_command(OUTPUT "${FILE_NAME_BINARY}"
-            COMMAND "${OPENSPIN}"
+            COMMAND "${OPENSPIN}" -q
             ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
             ARGS -I "${SPATH}"
             ARGS -o "${FILE_NAME_BINARY}"
@@ -818,6 +836,18 @@ function(generate_propeller_firmware TARGET_NAME)
 
     add_definitions("-D__PROPELLER__")
 
+    if("${${TARGET_NAME}_MM}" STREQUAL "cmm")
+        add_definitions("-D__PROPELLER_CMM__")
+    endif()
+
+    if("${${TARGET_NAME}_MM}" STREQUAL "lmm")
+        add_definitions("-D__PROPELLER_LMM__")
+    endif()
+
+    if("${PROPELLER_C_FLAGS}" MATCHES "-m32bit-doubles")
+        add_definitions("-D__PROPELLER_32BIT_DOUBLES__")
+    endif()
+
     if((DEFINED ${TARGET_NAME}_LIBS) AND ${TARGET_NAME}_LIBS)
         setup_libraries("${${TARGET_NAME}_LIBS}"
         "-m${${TARGET_NAME}_MM}"
@@ -845,10 +875,10 @@ function(generate_propeller_firmware TARGET_NAME)
                         list(APPEND LIB_TARGETS "${LIB_SOURCE}")
                     endif()
 
-                    # Help the linker see spin symbols...
-                    if("${LIB_SOURCE_EXT}" STREQUAL ".spin.obj")
-                        list(APPEND LIB_TARGETS "${LIB_SOURCE}")
-                    endif()
+                    # # Help the linker see spin symbols...
+                    # if("${LIB_SOURCE_EXT}" STREQUAL ".spin.obj")
+                    #     list(APPEND LIB_TARGETS "${LIB_SOURCE}")
+                    # endif()
 
                 endforeach()
 
