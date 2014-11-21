@@ -18,8 +18,6 @@
 cmake_minimum_required(VERSION "2.8")
 cmake_policy(VERSION "2.8")
 
-cmake_policy(SET "CMP0045" OLD)
-
 # C Flags ######################################################################
 
 set(PROPELLER_C_FLAGS
@@ -112,10 +110,10 @@ set(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO
 
 # Executable Paths #############################################################
 
+find_program(OPENSPIN "openspin")
+
 find_program(CMAKE_OBJCOPY "propeller-elf-objcopy")
 find_program(CMAKE_OBJDUMP "propeller-elf-objdump")
-
-find_program(OPENSPIN "openspin")
 
 # Size Stuff ###################################################################
 
@@ -152,6 +150,10 @@ function(generate_cogc_object COGC_FILE)
 
     string(REGEX REPLACE "\\\\" "/" COGC_FILE_OBJ "${COGC_FILE}")
     string(REGEX REPLACE "[^0-9A-Za-z./]" "_" COGC_FILE_OBJ "${COGC_FILE_OBJ}")
+
+    string(SHA1 COGC_FILE_OBJ_PATH "${COGC_FILE_OBJ}")
+    get_filename_component(COGC_FILE_OBJ_NAME "${COGC_FILE_OBJ}" NAME)
+    set(COGC_FILE_OBJ "${COGC_FILE_OBJ_PATH}/${COGC_FILE_OBJ_NAME}")
 
     set(COGC_FILE_OBJ
     "${CMAKE_BINARY_DIR}/CMakeFiles/cogc.dir/${COGC_FILE_OBJ}.obj")
@@ -197,6 +199,10 @@ function(generate_spin_object SPIN_FILE)
     string(REGEX REPLACE "\\\\" "/" SPIN_FILE_OBJ "${SPIN_FILE}")
     string(REGEX REPLACE "[^0-9A-Za-z./]" "_" SPIN_FILE_OBJ "${SPIN_FILE_OBJ}")
 
+    string(SHA1 SPIN_FILE_OBJ_PATH "${SPIN_FILE_OBJ}")
+    get_filename_component(SPIN_FILE_OBJ_NAME "${SPIN_FILE_OBJ}" NAME)
+    set(SPIN_FILE_OBJ "${SPIN_FILE_OBJ_PATH}/${SPIN_FILE_OBJ_NAME}")
+
     set(SPIN_FILE_OBJ
     "${CMAKE_BINARY_DIR}/CMakeFiles/spin.dir/${SPIN_FILE_OBJ}.obj")
 
@@ -209,12 +215,12 @@ function(generate_spin_object SPIN_FILE)
     set(SPIN_FILE_DAT "${SPIN_FILE_OBJ_PATH}/${SPIN_FILE_OBJ_NAME}.dat")
     get_filename_component(SPIN_FILE_DAT_NAME "${SPIN_FILE_DAT}" NAME)
 
-    get_filename_component(SPATH "${SPIN_FILE}" DIRECTORY)
+    get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
 
     add_custom_command(OUTPUT "${SPIN_FILE_OBJ}"
     COMMAND "${OPENSPIN}" -q
     ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
-    ARGS -I "${SPATH}"
+    ARGS -I "${SPIN_FILE_PATH}"
     ARGS -o "${SPIN_FILE_DAT}"
     ARGS -c "${SPIN_FILE}"
     COMMAND "${CMAKE_COMMAND}"
@@ -526,9 +532,7 @@ function(setup_library FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
         get_filename_component(FF_PATH_NAME "${FF_PATH}" NAME_WE)
         string(REGEX REPLACE "[^0-9A-Za-z]" "_" FF_PATH_NAME "${FF_PATH_NAME}")
 
-        get_target_property(TARGET_FOUND "${FF_PATH_NAME}" NAME)
-
-        if(NOT "${TARGET_FOUND}")
+        if(NOT TARGET "${FF_PATH_NAME}")
 
             list(APPEND FF_PATH_SOURCES ${FF_PATH_HEADERS})
             add_library("${FF_PATH_NAME}" STATIC ${FF_PATH_SOURCES})
@@ -569,9 +573,7 @@ function(setup_executable FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
         get_filename_component(FF_PATH_NAME "${FF_PATH}" NAME_WE)
         string(REGEX REPLACE "[^0-9A-Za-z]" "_" FF_PATH_NAME "${FF_PATH_NAME}")
 
-        get_target_property(TARGET_FOUND "${FF_PATH_NAME}" NAME)
-
-        if(NOT "${TARGET_FOUND}")
+        if(NOT TARGET "${FF_PATH_NAME}")
 
             list(APPEND FF_PATH_SOURCES ${FF_PATH_HEADERS})
             add_executable("${FF_PATH_NAME}" ${FF_PATH_SOURCES})
@@ -793,18 +795,18 @@ function(generate_propeller_firmware TARGET_NAME)
 
             get_filename_component(FILE_NAME "${${TARGET_NAME}_FPATH}" NAME_WE)
             string(REGEX REPLACE "[^0-9A-Za-z]" "_" FILE_NAME "${FILE_NAME}")
-
             set(FILE_NAME_BINARY "${CMAKE_BINARY_DIR}/${FILE_NAME}.binary")
 
             set_source_files_properties("${FILE_NAME_BINARY}" PROPERTIES
             EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
-            get_filename_component(SPATH "${${TARGET_NAME}_FPATH}" DIRECTORY)
+            get_filename_component(SPIN_FILE_PATH "${${TARGET_NAME}_FPATH}"
+            DIRECTORY)
 
             add_custom_command(OUTPUT "${FILE_NAME_BINARY}"
             COMMAND "${OPENSPIN}" -q
             ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
-            ARGS -I "${SPATH}"
+            ARGS -I "${SPIN_FILE_PATH}"
             ARGS -o "${FILE_NAME_BINARY}"
             ARGS -b "${${TARGET_NAME}_FPATH}"
             DEPENDS "${${TARGET_NAME}_FPATH}")
@@ -846,6 +848,8 @@ function(generate_propeller_firmware TARGET_NAME)
 
     if("${PROPELLER_C_FLAGS}" MATCHES "-m32bit-doubles")
         add_definitions("-D__PROPELLER_32BIT_DOUBLES__")
+    else()
+        add_definitions("-D__PROPELLER_64BIT_DOUBLES__")
     endif()
 
     if((DEFINED ${TARGET_NAME}_LIBS) AND ${TARGET_NAME}_LIBS)
@@ -870,10 +874,10 @@ function(generate_propeller_firmware TARGET_NAME)
 
                     get_filename_component(LIB_SOURCE_EXT "${LIB_SOURCE}" EXT)
 
-                    # Help the linker see cogc symbols...
-                    if("${LIB_SOURCE_EXT}" STREQUAL ".cogc.obj")
-                        list(APPEND LIB_TARGETS "${LIB_SOURCE}")
-                    endif()
+                    # # Help the linker see cogc symbols...
+                    # if("${LIB_SOURCE_EXT}" STREQUAL ".cogc.obj")
+                    #     list(APPEND LIB_TARGETS "${LIB_SOURCE}")
+                    # endif()
 
                     # # Help the linker see spin symbols...
                     # if("${LIB_SOURCE_EXT}" STREQUAL ".spin.obj")
