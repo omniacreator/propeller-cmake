@@ -127,6 +127,119 @@ find_program(PROPELLER_ELF_SIZE_SCRIPT "propeller-elf-size.cmake")
 find_program(PROPELLER_LOAD "propeller-load")
 
 ################################################################################
+# cogc_dependencies() - Generate cogc file dependency list.
+#
+# INPUT = COGC_FILE - Full path to input cogc file to scan.
+# OUTPUT = COGC_FILE_DEPENDENCY_LIST - List of dependency files.
+################################################################################
+
+function(cogc_dependencies COGC_FILE)
+
+    if(NOT DEFINED COGC_FILE_DEPENDENCY_LIST)
+        set(COGC_FILE_DEPENDENCY_LIST "${COGC_FILE}")
+    endif()
+
+    set(EX "[\t ]*#include[\t ]+[<\"](.+)[>\"]")
+
+    get_filename_component(COGC_FILE_PATH "${COGC_FILE}" DIRECTORY)
+
+    file(STRINGS "${COGC_FILE}" COGC_FILE_STRINGS)
+
+    foreach(COGC_FILE_STRING ${COGC_FILE_STRINGS})
+        if("\"${COGC_FILE_STRING}\"" MATCHES "${EX}")
+
+            string(REGEX REPLACE "(.+)[>\"]" "\\1"
+            FILE_NAME "${CMAKE_MATCH_1}")
+
+            if(EXISTS
+                "${COGC_FILE_PATH}/${FILE_NAME}")
+                set(FILE_PATH
+                "${COGC_FILE_PATH}/${FILE_NAME}")
+            else()
+                set(FILE_PATH "")
+            endif()
+
+            if(NOT FILE_PATH STREQUAL "")
+
+                list(FIND COGC_FILE_DEPENDENCY_LIST "${FILE_PATH}" FILE_FOUND)
+
+                if("${FILE_FOUND}" EQUAL "-1")
+                    list(APPEND COGC_FILE_DEPENDENCY_LIST "${FILE_PATH}")
+                    cogc_dependencies("${FILE_PATH}")
+                endif()
+
+            endif()
+
+        endif()
+    endforeach()
+
+    set(COGC_FILE_DEPENDENCY_LIST ${COGC_FILE_DEPENDENCY_LIST} PARENT_SCOPE)
+
+endfunction()
+
+################################################################################
+# spin_dependencies() - Generate spin file dependency list.
+#
+# INPUT = SPIN_FILE - Full path to input spin file to scan.
+# OUTPUT = SPIN_FILE_DEPENDENCY_LIST - List of dependency files.
+################################################################################
+
+function(spin_dependencies SPIN_FILE)
+
+    if(NOT DEFINED SPIN_FILE_DEPENDENCY_LIST)
+        set(SPIN_FILE_DEPENDENCY_LIST "${SPIN_FILE}")
+    endif()
+
+    set(EX "[\t ]*.+(\\[.+\\])?[\t ]*:[\t ]*\"(.+)\"")
+
+    get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
+
+    file(STRINGS "${SPIN_FILE}" SPIN_FILE_STRINGS)
+
+    foreach(SPIN_FILE_STRING ${SPIN_FILE_STRINGS})
+        if("\"${SPIN_FILE_STRING}\"" MATCHES "${EX}")
+
+            string(REGEX REPLACE "(.+)\"" "\\1"
+            FILE_NAME "${CMAKE_MATCH_2}")
+
+            get_filename_component(FILE_TYPE "${FILE_NAME}" EXT)
+            string(TOLOWER "${FILE_TYPE}" FILE_TYPE)
+
+            if(NOT "${FILE_TYPE}" STREQUAL ".spin")
+                set(FILE_NAME "${FILE_NAME}.spin")
+            endif()
+
+            if(EXISTS
+                "${PROPELLER_SDK_PATH}/propeller-gcc/spin/${FILE_NAME}")
+                set(FILE_PATH
+                "${PROPELLER_SDK_PATH}/propeller-gcc/spin/${FILE_NAME}")
+            elseif(EXISTS
+                "${SPIN_FILE_PATH}/${FILE_NAME}")
+                set(FILE_PATH
+                "${SPIN_FILE_PATH}/${FILE_NAME}")
+            else()
+                set(FILE_PATH "")
+            endif()
+
+            if(NOT FILE_PATH STREQUAL "")
+
+                list(FIND SPIN_FILE_DEPENDENCY_LIST "${FILE_PATH}" FILE_FOUND)
+
+                if("${FILE_FOUND}" EQUAL "-1")
+                    list(APPEND SPIN_FILE_DEPENDENCY_LIST "${FILE_PATH}")
+                    spin_dependencies("${FILE_PATH}")
+                endif()
+
+            endif()
+
+        endif()
+    endforeach()
+
+    set(SPIN_FILE_DEPENDENCY_LIST ${SPIN_FILE_DEPENDENCY_LIST} PARENT_SCOPE)
+
+endfunction()
+
+################################################################################
 # generate_cogc_object() - Compiles cogc source into a linkable cogc object.
 #
 # INPUT = COGC_FILE - Full path to input cogc file.
@@ -161,9 +274,11 @@ function(generate_cogc_object COGC_FILE)
     set_source_files_properties("${COGC_FILE_OBJ}" PROPERTIES
     EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
+    separate_arguments(COGC_FLAGS)
+
     get_filename_component(COGC_FILE_OBJ_NAME "${COGC_FILE_OBJ}" NAME_WE)
 
-    separate_arguments(COGC_FLAGS)
+    cogc_dependencies("${COGC_FILE}")
 
     add_custom_command(OUTPUT "${COGC_FILE_OBJ}"
     COMMAND "${COGC_COMPILIER}"
@@ -174,7 +289,7 @@ function(generate_cogc_object COGC_FILE)
     ARGS --localize-text --rename-section
     ARGS .text=".${COGC_FILE_OBJ_NAME}.cog"
     ARGS "${COGC_FILE_OBJ}"
-    DEPENDS "${COGC_FILE}")
+    DEPENDS ${COGC_FILE_DEPENDENCY_LIST})
 
     set(COGC_FILE_OBJECT "${COGC_FILE_OBJ}" PARENT_SCOPE)
 
@@ -217,10 +332,12 @@ function(generate_spin_object SPIN_FILE)
 
     get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
 
+    spin_dependencies("${SPIN_FILE}")
+
     add_custom_command(OUTPUT "${SPIN_FILE_OBJ}"
     COMMAND "${OPENSPIN}" -q
-    ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
     ARGS -I "${SPIN_FILE_PATH}"
+    ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
     ARGS -o "${SPIN_FILE_DAT}"
     ARGS -c "${SPIN_FILE}"
     COMMAND "${CMAKE_COMMAND}"
@@ -231,7 +348,7 @@ function(generate_spin_object SPIN_FILE)
     ARGS "${SPIN_FILE_OBJ}"
     COMMAND "${CMAKE_COMMAND}"
     ARGS -E remove "${SPIN_FILE_DAT}"
-    DEPENDS "${SPIN_FILE}")
+    DEPENDS ${SPIN_FILE_DEPENDENCY_LIST})
 
     set(SPIN_FILE_OBJECT "${SPIN_FILE_OBJ}" PARENT_SCOPE)
 
@@ -257,11 +374,12 @@ function(parse_side_file SIDE_FILE)
     file(STRINGS "${SIDE_FILE}" SIDE_FILE_STRINGS)
 
     foreach(SIDE_FILE_STRING ${SIDE_FILE_STRINGS})
-        if("${SIDE_FILE_STRING}" MATCHES "^[^>].*$")
+        if("${SIDE_FILE_STRING}" MATCHES "^[\t ]*[^>].*$")
 
-            if("${SIDE_FILE_STRING}" MATCHES "^.+ -> .+$")
-                string(REGEX REPLACE "^.+ -> (.+)$" "\\1"
-                SIDE_FILE_STRING "${SIDE_FILE_STRING}")
+            string(STRIP "${SIDE_FILE_STRING}" SIDE_FILE_STRING)
+
+            if("${SIDE_FILE_STRING}" MATCHES "[\t ]*.+[\t ]+->[\t ]+(.+)")
+                set(SIDE_FILE_STRING "${CMAKE_MATCH_1}")
             endif()
 
             set(SIDE_FILE_SOURCE_FILE "${SIDE_FILE_PATH}/${SIDE_FILE_STRING}")
@@ -273,10 +391,7 @@ function(parse_side_file SIDE_FILE)
             string(TOLOWER "${FILE_TYPE}" FILE_TYPE)
 
             if("${FILE_TYPE}" STREQUAL ".side")
-                parse_side_file("${SIDE_FILE_SOURCE_FILE}")
-                list(APPEND SIDE_FILE_SOURCE_LIST ${SIDE_FILE_SOURCES})
-                list(APPEND SIDE_FILE_HEADER_LIST ${SIDE_FILE_HEADERS})
-                list(APPEND SIDE_FILE_FOLDER_LIST ${SIDE_FILE_FOLDERS})
+                message(FATAL_ERROR "SIDE File inside of SIDE File!")
             elseif(("${FILE_TYPE}" STREQUAL ".cogc")
             OR ("${FILE_TYPE}" STREQUAL ".cogcpp"))
                 generate_cogc_object("${SIDE_FILE_SOURCE_FILE}")
@@ -315,33 +430,31 @@ function(parse_side_file SIDE_FILE)
 
     foreach(SIDE_FILE_SOURCE ${SIDE_FILE_SOURCE_LIST})
 
-        set(DEP_LIST "${SIDE_FILE}")
-
         get_source_file_property(OBJ_DEPS "${SIDE_FILE_SOURCE}" OBJECT_DEPENDS)
 
         if(OBJ_DEPS)
-            list(APPEND DEP_LIST "${OBJ_DEPS}")
+            list(APPEND OBJ_DEPS "${SIDE_FILE}")
+        else()
+            set(OBJ_DEPS "${SIDE_FILE}")
         endif()
 
-        list(REMOVE_DUPLICATES DEP_LIST)
         set_source_files_properties("${SIDE_FILE_SOURCE}" PROPERTIES
-        OBJECT_DEPENDS "${DEP_LIST}")
+        OBJECT_DEPENDS "${OBJ_DEPS}")
 
     endforeach()
 
     foreach(SIDE_FILE_HEADER ${SIDE_FILE_HEADER_LIST})
 
-        set(DEP_LIST "${SIDE_FILE}")
-
         get_source_file_property(OBJ_DEPS "${SIDE_FILE_HEADER}" OBJECT_DEPENDS)
 
         if(OBJ_DEPS)
-            list(APPEND DEP_LIST "${OBJ_DEPS}")
+            list(APPEND OBJ_DEPS "${SIDE_FILE}")
+        else()
+            set(OBJ_DEPS "${SIDE_FILE}")
         endif()
 
-        list(REMOVE_DUPLICATES DEP_LIST)
         set_source_files_properties("${SIDE_FILE_HEADER}" PROPERTIES
-        OBJECT_DEPENDS "${DEP_LIST}")
+        OBJECT_DEPENDS "${OBJ_DEPS}")
 
     endforeach()
 
@@ -751,7 +864,8 @@ function(setup_libraries LIBRARY_PATHS EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
     foreach(LIBRARY_PATH ${LIBRARY_PATH_LIST})
 
         setup_library("${LIBRARY_PATH}"
-        "${EXTRA_COMPILE_FLAGS}" "${EXTRA_LINK_FLAGS}")
+        "${EXTRA_COMPILE_FLAGS}"
+        "${EXTRA_LINK_FLAGS}")
 
         if(LIB_TARGET)
             list(APPEND LIB_TARGET_LIST "${LIB_TARGET}")
@@ -800,16 +914,18 @@ function(generate_propeller_firmware TARGET_NAME)
             set_source_files_properties("${FILE_NAME_BINARY}" PROPERTIES
             EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
-            get_filename_component(SPIN_FILE_PATH "${${TARGET_NAME}_FPATH}"
-            DIRECTORY)
+            get_filename_component(SPIN_FILE_PATH
+            "${${TARGET_NAME}_FPATH}" DIRECTORY)
+
+            spin_dependencies("${${TARGET_NAME}_FPATH}")
 
             add_custom_command(OUTPUT "${FILE_NAME_BINARY}"
             COMMAND "${OPENSPIN}" -q
-            ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
             ARGS -I "${SPIN_FILE_PATH}"
+            ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
             ARGS -o "${FILE_NAME_BINARY}"
             ARGS -b "${${TARGET_NAME}_FPATH}"
-            DEPENDS "${${TARGET_NAME}_FPATH}")
+            DEPENDS ${SPIN_FILE_DEPENDENCY_LIST})
 
             add_custom_target("${FILE_NAME}" ALL
             DEPENDS "${FILE_NAME_BINARY}")
@@ -865,28 +981,6 @@ function(generate_propeller_firmware TARGET_NAME)
     if(NOT "${EXE_TARGET}" STREQUAL "")
 
         if((DEFINED LIB_TARGETS) AND LIB_TARGETS)
-
-            foreach(LIB_TARGET ${LIB_TARGETS})
-
-                get_target_property(LIB_SOURCES "${LIB_TARGET}" SOURCES)
-
-                foreach(LIB_SOURCE ${LIB_SOURCES})
-
-                    get_filename_component(LIB_SOURCE_EXT "${LIB_SOURCE}" EXT)
-
-                    # # Help the linker see cogc symbols...
-                    # if("${LIB_SOURCE_EXT}" STREQUAL ".cogc.obj")
-                    #     list(APPEND LIB_TARGETS "${LIB_SOURCE}")
-                    # endif()
-
-                    # # Help the linker see spin symbols...
-                    # if("${LIB_SOURCE_EXT}" STREQUAL ".spin.obj")
-                    #     list(APPEND LIB_TARGETS "${LIB_SOURCE}")
-                    # endif()
-
-                endforeach()
-
-            endforeach()
 
             target_link_libraries("${EXE_TARGET}"
             "-Wl,--start-group" ${LIB_TARGETS} "-Wl,--end-group")
