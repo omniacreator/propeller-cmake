@@ -21,10 +21,10 @@ cmake_policy(VERSION "2.8")
 # C Flags ######################################################################
 
 set(PROPELLER_C_FLAGS
-"-ffunction-sections -fdata-sections -m32bit-doubles -Wall")
+"-ffunction-sections -fdata-sections -mfcache -m32bit-doubles")
 
 set(CMAKE_C_FLAGS
-"-g -Os ${PROPELLER_C_FLAGS} -std=c99")
+"-Os ${PROPELLER_C_FLAGS} -std=c99") # removed -g
 
 set(CMAKE_C_FLAGS_DEBUG
 "-g ${PROPELLER_C_FLAGS} -std=c99")
@@ -44,7 +44,7 @@ set(PROPELLER_CXX_FLAGS
 "${PROPELLER_C_FLAGS} -fno-exceptions -fno-rtti")
 
 set(CMAKE_CXX_FLAGS
-"-g -Os ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
+"-Os ${PROPELLER_CXX_FLAGS} -std=gnu++0x") # removed -g
 
 set(CMAKE_CXX_FLAGS_DEBUG
 "-g ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
@@ -61,7 +61,7 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO
 # Linker Flags #################################################################
 
 set(PROPELLER_LINKER_FLAGS
-"-Wl,--gc-sections -lm")
+"-Wl,--gc-sections -lm -lpthread -ltiny")
 
 set(CMAKE_EXE_LINKER_FLAGS
 "${PROPELLER_LINKER_FLAGS}")
@@ -129,21 +129,29 @@ find_program(PROPELLER_LOAD "propeller-load")
 ################################################################################
 # cogc_dependencies() - Generate cogc file dependency list.
 #
+# PARENT VAR = COGC_INCLUDE_LIST - Cogc include path list.
+# PARENT VAR = COGC_FILE_DEPENDENCY_LIST - Recursion variable.
+#
 # INPUT = COGC_FILE - Full path to input cogc file to scan.
 # OUTPUT = COGC_FILE_DEPENDENCY_LIST - List of dependency files.
 ################################################################################
 
 function(cogc_dependencies COGC_FILE)
 
+    if(NOT DEFINED COGC_INCLUDE_LIST)
+        set(COGC_INCLUDE_LIST "")
+    endif()
+
     if(NOT DEFINED COGC_FILE_DEPENDENCY_LIST)
         set(COGC_FILE_DEPENDENCY_LIST "${COGC_FILE}")
     endif()
 
-    set(EX "[\t ]*#include[\t ]+[<\"](.+)[>\"]")
-
     get_filename_component(COGC_FILE_PATH "${COGC_FILE}" DIRECTORY)
+    list(APPEND COGC_INCLUDE_LIST "${COGC_FILE_PATH}")
 
-    file(STRINGS "${COGC_FILE}" COGC_FILE_STRINGS)
+    set(EX "#include[\t ]+[<\"](.+)[>\"]")
+
+    file(STRINGS "${COGC_FILE}" COGC_FILE_STRINGS REGEX "${EX}")
 
     foreach(COGC_FILE_STRING ${COGC_FILE_STRINGS})
         if("\"${COGC_FILE_STRING}\"" MATCHES "${EX}")
@@ -151,13 +159,14 @@ function(cogc_dependencies COGC_FILE)
             string(REGEX REPLACE "(.+)[>\"]" "\\1"
             FILE_NAME "${CMAKE_MATCH_1}")
 
-            if(EXISTS
-                "${COGC_FILE_PATH}/${FILE_NAME}")
-                set(FILE_PATH
-                "${COGC_FILE_PATH}/${FILE_NAME}")
-            else()
-                set(FILE_PATH "")
-            endif()
+            set(FILE_PATH "")
+
+            foreach(COGC_INCLUDE ${COGC_INCLUDE_LIST})
+                if(EXISTS "${COGC_INCLUDE}/${FILE_NAME}")
+                    set(FILE_PATH "${COGC_INCLUDE}/${FILE_NAME}")
+                    break()
+                endif()
+            endforeach()
 
             if(NOT FILE_PATH STREQUAL "")
 
@@ -180,21 +189,29 @@ endfunction()
 ################################################################################
 # spin_dependencies() - Generate spin file dependency list.
 #
+# PARENT VAR = SPIN_INCLUDE_LIST - Spin include path list.
+# PARENT VAR = SPIN_FILE_DEPENDENCY_LIST - Recursion variable.
+#
 # INPUT = SPIN_FILE - Full path to input spin file to scan.
 # OUTPUT = SPIN_FILE_DEPENDENCY_LIST - List of dependency files.
 ################################################################################
 
 function(spin_dependencies SPIN_FILE)
 
+    if(NOT DEFINED SPIN_INCLUDE_LIST)
+        set(SPIN_INCLUDE_LIST "")
+    endif()
+
     if(NOT DEFINED SPIN_FILE_DEPENDENCY_LIST)
         set(SPIN_FILE_DEPENDENCY_LIST "${SPIN_FILE}")
     endif()
 
-    set(EX "[\t ]*.+(\\[.+\\])?[\t ]*:[\t ]*\"(.+)\"")
-
     get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
+    list(APPEND SPIN_INCLUDE_LIST "${SPIN_FILE_PATH}")
 
-    file(STRINGS "${SPIN_FILE}" SPIN_FILE_STRINGS)
+    set(EX ".+(\\[.+\\])?[\t ]*:[\t ]*\"(.+)\"")
+
+    file(STRINGS "${SPIN_FILE}" SPIN_FILE_STRINGS REGEX "${EX}")
 
     foreach(SPIN_FILE_STRING ${SPIN_FILE_STRINGS})
         if("\"${SPIN_FILE_STRING}\"" MATCHES "${EX}")
@@ -209,17 +226,14 @@ function(spin_dependencies SPIN_FILE)
                 set(FILE_NAME "${FILE_NAME}.spin")
             endif()
 
-            if(EXISTS
-                "${PROPELLER_SDK_PATH}/propeller-gcc/spin/${FILE_NAME}")
-                set(FILE_PATH
-                "${PROPELLER_SDK_PATH}/propeller-gcc/spin/${FILE_NAME}")
-            elseif(EXISTS
-                "${SPIN_FILE_PATH}/${FILE_NAME}")
-                set(FILE_PATH
-                "${SPIN_FILE_PATH}/${FILE_NAME}")
-            else()
-                set(FILE_PATH "")
-            endif()
+            set(FILE_PATH "")
+
+            foreach(SPIN_INCLUDE ${SPIN_INCLUDE_LIST})
+                if(EXISTS "${SPIN_INCLUDE}/${FILE_NAME}")
+                    set(FILE_PATH "${SPIN_INCLUDE}/${FILE_NAME}")
+                    break()
+                endif()
+            endforeach()
 
             if(NOT FILE_PATH STREQUAL "")
 
@@ -235,6 +249,37 @@ function(spin_dependencies SPIN_FILE)
         endif()
     endforeach()
 
+    SET(EX "[Ff][Ii][Ll][Ee][\t ]+\"(.+)\"")
+
+    file(STRINGS "${SPIN_FILE}" SPIN_FILE_STRINGS REGEX "${EX}")
+
+    foreach(SPIN_FILE_STRING ${SPIN_FILE_STRINGS})
+        if("\"${SPIN_FILE_STRING}\"" MATCHES "${EX}")
+
+            string(REGEX REPLACE "(.+)\"" "\\1" FILE_NAME "${CMAKE_MATCH_1}")
+
+            set(FILE_PATH "")
+
+            foreach(SPIN_INCLUDE ${SPIN_INCLUDE_LIST})
+                if(EXISTS "${SPIN_INCLUDE}/${FILE_NAME}")
+                    set(FILE_PATH "${SPIN_INCLUDE}/${FILE_NAME}")
+                    break()
+                endif()
+            endforeach()
+
+            if(NOT FILE_PATH STREQUAL "")
+
+                list(FIND SPIN_FILE_DEPENDENCY_LIST "${FILE_PATH}" FILE_FOUND)
+
+                if("${FILE_FOUND}" EQUAL "-1")
+                    list(APPEND SPIN_FILE_DEPENDENCY_LIST "${FILE_PATH}")
+                endif()
+
+            endif()
+
+        endif()
+    endforeach()
+
     set(SPIN_FILE_DEPENDENCY_LIST ${SPIN_FILE_DEPENDENCY_LIST} PARENT_SCOPE)
 
 endfunction()
@@ -242,11 +287,17 @@ endfunction()
 ################################################################################
 # generate_cogc_object() - Compiles cogc source into a linkable cogc object.
 #
+# PARENT VAR = COGC_INCLUDE_LIST - Cogc include path list.
+#
 # INPUT = COGC_FILE - Full path to input cogc file.
 # OUTPUT = COGC_FILE_OBJECT - Full path to output cogc object file.
 ################################################################################
 
 function(generate_cogc_object COGC_FILE)
+
+    if(NOT DEFINED COGC_INCLUDE_LIST)
+        set(COGC_INCLUDE_LIST "")
+    endif()
 
     get_filename_component(COGC_FILE_EXT "${COGC_FILE}" EXT)
     string(TOLOWER "${COGC_FILE_EXT}" COGC_FILE_EXT)
@@ -281,8 +332,8 @@ function(generate_cogc_object COGC_FILE)
     cogc_dependencies("${COGC_FILE}")
 
     add_custom_command(OUTPUT "${COGC_FILE_OBJ}"
-    COMMAND "${COGC_COMPILIER}"
-    ARGS ${COGC_FLAGS}
+    COMMAND "${COGC_COMPILIER}" ${COGC_FLAGS}
+    ARGS ${COGC_INCLUDE_LIST}
     ARGS -o "${COGC_FILE_OBJ}"
     ARGS -c "${COGC_FILE}"
     COMMAND "${CMAKE_OBJCOPY}"
@@ -291,6 +342,9 @@ function(generate_cogc_object COGC_FILE)
     ARGS "${COGC_FILE_OBJ}"
     DEPENDS ${COGC_FILE_DEPENDENCY_LIST})
 
+    string(REGEX REPLACE "[^0-9A-Za-z]" "_" CUSTOM_TARGET "${COGC_FILE_OBJ}")
+    add_custom_target("${CUSTOM_TARGET}" SOURCES ${COGC_FILE_DEPENDENCY_LIST})
+
     set(COGC_FILE_OBJECT "${COGC_FILE_OBJ}" PARENT_SCOPE)
 
 endfunction()
@@ -298,11 +352,17 @@ endfunction()
 ################################################################################
 # generate_spin_object() - Compiles spin source into a linkable spin object.
 #
+# PARENT VAR = SPIN_INCLUDE_LIST - Spin include path list.
+#
 # INPUT = SPIN_FILE - Full path to input spin file.
 # OUTPUT = SPIN_FILE_OBJECT - Full path to output spin object file.
 ################################################################################
 
 function(generate_spin_object SPIN_FILE)
+
+    if(NOT DEFINED SPIN_INCLUDE_LIST)
+        set(SPIN_INCLUDE_LIST "")
+    endif()
 
     get_filename_component(SPIN_FILE_EXT "${SPIN_FILE}" EXT)
     string(TOLOWER "${SPIN_FILE_EXT}" SPIN_FILE_EXT)
@@ -331,13 +391,13 @@ function(generate_spin_object SPIN_FILE)
     get_filename_component(SPIN_FILE_DAT_NAME "${SPIN_FILE_DAT}" NAME)
 
     get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
+    list(APPEND SPIN_INCLUDE_LIST "-I" "${SPIN_FILE_PATH}")
 
     spin_dependencies("${SPIN_FILE}")
 
     add_custom_command(OUTPUT "${SPIN_FILE_OBJ}"
     COMMAND "${OPENSPIN}" -q
-    ARGS -I "${SPIN_FILE_PATH}"
-    ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
+    ARGS ${SPIN_INCLUDE_LIST}
     ARGS -o "${SPIN_FILE_DAT}"
     ARGS -c "${SPIN_FILE}"
     COMMAND "${CMAKE_COMMAND}"
@@ -349,6 +409,9 @@ function(generate_spin_object SPIN_FILE)
     COMMAND "${CMAKE_COMMAND}"
     ARGS -E remove "${SPIN_FILE_DAT}"
     DEPENDS ${SPIN_FILE_DEPENDENCY_LIST})
+
+    string(REGEX REPLACE "[^0-9A-Za-z]" "_" CUSTOM_TARGET "${SPIN_FILE_OBJ}")
+    add_custom_target("${CUSTOM_TARGET}" SOURCES ${SPIN_FILE_DEPENDENCY_LIST})
 
     set(SPIN_FILE_OBJECT "${SPIN_FILE_OBJ}" PARENT_SCOPE)
 
@@ -371,14 +434,14 @@ function(parse_side_file SIDE_FILE)
 
     get_filename_component(SIDE_FILE_PATH "${SIDE_FILE}" DIRECTORY)
 
-    file(STRINGS "${SIDE_FILE}" SIDE_FILE_STRINGS)
+    file(STRINGS "${SIDE_FILE}" SIDE_FILE_STRINGS REGEX "^[\t ]*[^>].*$")
 
     foreach(SIDE_FILE_STRING ${SIDE_FILE_STRINGS})
         if("${SIDE_FILE_STRING}" MATCHES "^[\t ]*[^>].*$")
 
             string(STRIP "${SIDE_FILE_STRING}" SIDE_FILE_STRING)
 
-            if("${SIDE_FILE_STRING}" MATCHES "[\t ]*.+[\t ]+->[\t ]+(.+)")
+            if("${SIDE_FILE_STRING}" MATCHES ".+[\t ]+->[\t ]+(.+)")
                 set(SIDE_FILE_STRING "${CMAKE_MATCH_1}")
             endif()
 
@@ -457,6 +520,9 @@ function(parse_side_file SIDE_FILE)
         OBJECT_DEPENDS "${OBJ_DEPS}")
 
     endforeach()
+
+    string(REGEX REPLACE "[^0-9A-Za-z]" "_" CUSTOM_TARGET "${SIDE_FILE}")
+    add_custom_target("${CUSTOM_TARGET}" SOURCES "${SIDE_FILE}")
 
     set(SIDE_FILE_SOURCES ${SIDE_FILE_SOURCE_LIST} PARENT_SCOPE)
     set(SIDE_FILE_HEADERS ${SIDE_FILE_HEADER_LIST} PARENT_SCOPE)
@@ -878,6 +944,142 @@ function(setup_libraries LIBRARY_PATHS EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 endfunction()
 
 ################################################################################
+# generate_cogc_include_list() - Generates an include directory list.
+#
+# PARENT VAR = PROPELLER_SDK_PATH - Propeller SDK Path (SimpleIDE Path)
+#
+# INPUT = LIBRARY_PATHS - Library root folder paths.
+# OUTPUT = COGC_INCLUDE_LIST - Include directory list with -I.
+################################################################################
+
+function(generate_cogc_include_directories LIBRARY_PATHS)
+
+    set(LIBRARY_PATH_LIST "")
+
+    foreach(LIBRARY_PATH ${LIBRARY_PATHS})
+
+        get_filename_component(FOLDER_NAME "${LIBRARY_PATH}" NAME)
+
+        if("${FOLDER_NAME}" STREQUAL "libraries")
+
+            file(GLOB LIBRARIES "${LIBRARY_PATH}/*")
+
+            foreach(LIBRARY ${LIBRARIES})
+                if(IS_DIRECTORY "${LIBRARY}")
+
+                    list(APPEND LIBRARY_PATH_LIST
+                    "-I" "${LIBRARY}")
+
+                    if(IS_DIRECTORY "${LIB_PATH}/utility")
+                        list(APPEND LIBRARY_PATH_LIST
+                        "-I" "${LIB_PATH}/utility")
+                    endif()
+
+                endif()
+            endforeach()
+
+        elseif("${FOLDER_NAME}" STREQUAL "Simple Libraries")
+
+            file(GLOB_RECURSE LIBRARIES "${LIBRARY_PATH}/*.side")
+
+            foreach(LIBRARY ${LIBRARIES})
+
+                get_filename_component(LIB_PATH "${LIBRARY}" DIRECTORY)
+                list(APPEND LIBRARY_PATH_LIST
+                "-I" "${LIB_PATH}")
+
+                if(IS_DIRECTORY "${LIB_PATH}/source")
+                    list(APPEND LIBRARY_PATH_LIST
+                    "-I" "${LIB_PATH}/source")
+                endif()
+
+            endforeach()
+
+        else()
+            message(FATAL_ERROR "Unknown libs type \"${FOLDER_NAME}\"!")
+        endif()
+
+    endforeach()
+
+    if((DEFINED PROPELLER_SDK_PATH) AND
+    (NOT "${PROPELLER_SDK_PATH}" STREQUAL ""))
+        list(APPEND LIBRARY_PATH_LIST "-I"
+        "${PROPELLER_SDK_PATH}/propeller-gcc/propeller-elf/include")
+    endif()
+
+    set(COGC_INCLUDE_LIST ${LIBRARY_PATH_LIST} PARENT_SCOPE)
+
+endfunction()
+
+################################################################################
+# generate_spin_include_list() - Generates an include directory list.
+#
+# PARENT VAR = PROPELLER_SDK_PATH - Propeller SDK Path (SimpleIDE Path)
+#
+# INPUT = LIBRARY_PATHS - Library root folder paths.
+# OUTPUT = SPIN_INCLUDE_LIST - Include directory list with -I.
+################################################################################
+
+function(generate_spin_include_directories LIBRARY_PATHS)
+
+    set(LIBRARY_PATH_LIST "")
+
+    foreach(LIBRARY_PATH ${LIBRARY_PATHS})
+
+        get_filename_component(FOLDER_NAME "${LIBRARY_PATH}" NAME)
+
+        if("${FOLDER_NAME}" STREQUAL "libraries")
+
+            file(GLOB LIBRARIES "${LIBRARY_PATH}/*")
+
+            foreach(LIBRARY ${LIBRARIES})
+                if(IS_DIRECTORY "${LIBRARY}")
+
+                    list(APPEND LIBRARY_PATH_LIST
+                    "-I" "${LIBRARY}")
+
+                    if(IS_DIRECTORY "${LIB_PATH}/utility")
+                        list(APPEND LIBRARY_PATH_LIST
+                        "-I" "${LIB_PATH}/utility")
+                    endif()
+
+                endif()
+            endforeach()
+
+        elseif("${FOLDER_NAME}" STREQUAL "Simple Libraries")
+
+            file(GLOB_RECURSE LIBRARIES "${LIBRARY_PATH}/*.side")
+
+            foreach(LIBRARY ${LIBRARIES})
+
+                get_filename_component(LIB_PATH "${LIBRARY}" DIRECTORY)
+                list(APPEND LIBRARY_PATH_LIST
+                "-I" "${LIB_PATH}")
+
+                if(IS_DIRECTORY "${LIB_PATH}/source")
+                    list(APPEND LIBRARY_PATH_LIST
+                    "-I" "${LIB_PATH}/source")
+                endif()
+
+            endforeach()
+
+        else()
+            message(FATAL_ERROR "Unknown libs type \"${FOLDER_NAME}\"!")
+        endif()
+
+    endforeach()
+
+    if((DEFINED PROPELLER_SDK_PATH) AND
+    (NOT "${PROPELLER_SDK_PATH}" STREQUAL ""))
+        list(APPEND LIBRARY_PATH_LIST "-I"
+        "${PROPELLER_SDK_PATH}/propeller-gcc/spin")
+    endif()
+
+    set(SPIN_INCLUDE_LIST ${LIBRARY_PATH_LIST} PARENT_SCOPE)
+
+endfunction()
+
+################################################################################
 # generate_propeller_firmware() - Main Function.
 #
 # INPUT = TARGET_NAME - Target name.
@@ -900,15 +1102,24 @@ function(generate_propeller_firmware TARGET_NAME)
         message(FATAL_ERROR "File or folder path is empty!")
     endif()
 
+    if((DEFINED ${TARGET_NAME}_LIBS) AND ${TARGET_NAME}_LIBS)
+        generate_cogc_include_directories("${${TARGET_NAME}_LIBS}")
+        generate_spin_include_directories("${${TARGET_NAME}_LIBS}")
+    else()
+        generate_cogc_include_directories("")
+        generate_spin_include_directories("")
+    endif()
+
     if(NOT IS_DIRECTORY "${${TARGET_NAME}_FPATH}")
+
+        get_filename_component(FILE_NAME "${${TARGET_NAME}_FPATH}" NAME_WE)
+        string(REGEX REPLACE "[^0-9A-Za-z]" "_" FILE_NAME "${FILE_NAME}")
 
         get_filename_component(FILE_TYPE "${${TARGET_NAME}_FPATH}" EXT)
         string(TOLOWER "${FILE_TYPE}" FILE_TYPE)
 
         if("${FILE_TYPE}" STREQUAL ".spin")
 
-            get_filename_component(FILE_NAME "${${TARGET_NAME}_FPATH}" NAME_WE)
-            string(REGEX REPLACE "[^0-9A-Za-z]" "_" FILE_NAME "${FILE_NAME}")
             set(FILE_NAME_BINARY "${CMAKE_BINARY_DIR}/${FILE_NAME}.binary")
 
             set_source_files_properties("${FILE_NAME_BINARY}" PROPERTIES
@@ -916,22 +1127,111 @@ function(generate_propeller_firmware TARGET_NAME)
 
             get_filename_component(SPIN_FILE_PATH
             "${${TARGET_NAME}_FPATH}" DIRECTORY)
+            list(APPEND SPIN_INCLUDE_LIST "-I" "${SPIN_FILE_PATH}")
 
             spin_dependencies("${${TARGET_NAME}_FPATH}")
 
             add_custom_command(OUTPUT "${FILE_NAME_BINARY}"
             COMMAND "${OPENSPIN}" -q
-            ARGS -I "${SPIN_FILE_PATH}"
-            ARGS -I "${PROPELLER_SDK_PATH}/propeller-gcc/spin"
+            ARGS ${SPIN_INCLUDE_LIST}
             ARGS -o "${FILE_NAME_BINARY}"
             ARGS -b "${${TARGET_NAME}_FPATH}"
             DEPENDS ${SPIN_FILE_DEPENDENCY_LIST})
 
             add_custom_target("${FILE_NAME}" ALL
-            DEPENDS "${FILE_NAME_BINARY}")
+            DEPENDS "${FILE_NAME_BINARY}"
+            SOURCES ${SPIN_FILE_DEPENDENCY_LIST})
 
             setup_bin_size("${FILE_NAME}")
             setup_bin_upload("${FILE_NAME}")
+
+            return()
+
+        elseif(("${FILE_TYPE}" STREQUAL ".binary")
+        OR ("${FILE_TYPE}" STREQUAL ".eeprom"))
+
+            add_custom_target("${FILE_NAME}" ALL
+            COMMAND "${CMAKE_COMMAND}"
+            "-DBIN_FILE_PATH=\"${${TARGET_NAME}_FPATH}\""
+            -P "${PROPELLER_BIN_SIZE_SCRIPT}"
+            DEPENDS "${${TARGET_NAME}_FPATH}"
+            SOURCES "${${TARGET_NAME}_FPATH}")
+
+            set(UPLOAD_COMMAND_LIST "-r" "-e")
+
+            if((DEFINED ${TARGET_NAME}_BOARD)
+            AND (NOT "${${TARGET_NAME}_BOARD}" STREQUAL ""))
+                list(APPEND UPLOAD_COMMAND_LIST
+                "-b" "${${TARGET_NAME}_BOARD}")
+            endif()
+
+            if((DEFINED ${TARGET_NAME}_PORT)
+            AND (NOT "${${TARGET_NAME}_PORT}" STREQUAL ""))
+                list(APPEND UPLOAD_COMMAND_LIST
+                "-p" "${${TARGET_NAME}_PORT}")
+            endif()
+
+            if((DEFINED ${TARGET_NAME}_CF)
+            AND (NOT "${${TARGET_NAME}_CF}" STREQUAL ""))
+                list(APPEND UPLOAD_COMMAND_LIST
+                "-D" "clkfreq=${${TARGET_NAME}_CF}")
+            endif()
+
+            if((DEFINED ${TARGET_NAME}_CM)
+            AND (NOT "${${TARGET_NAME}_CM}" STREQUAL ""))
+                list(APPEND UPLOAD_COMMAND_LIST
+                "-D" "clkmode=${${TARGET_NAME}_CM}")
+            endif()
+
+            add_custom_target("upload"
+            COMMAND "${PROPELLER_LOAD}"
+            ${UPLOAD_COMMAND_LIST}
+            "${${TARGET_NAME}_FPATH}"
+            DEPENDS "${FILE_NAME}")
+
+            return()
+
+        elseif("${FILE_TYPE}" STREQUAL ".elf")
+
+            add_custom_target("${FILE_NAME}" ALL
+            COMMAND "${CMAKE_COMMAND}"
+            "-DELF_FILE_PATH=\"${${TARGET_NAME}_FPATH}\""
+            "-DPROPELLER_ELF_SIZE=\"${PROPELLER_ELF_SIZE}\""
+            -P "${PROPELLER_ELF_SIZE_SCRIPT}"
+            DEPENDS "${${TARGET_NAME}_FPATH}"
+            SOURCES "${${TARGET_NAME}_FPATH}")
+
+            set(UPLOAD_COMMAND_LIST "-r" "-e")
+
+            if((DEFINED ${TARGET_NAME}_BOARD)
+            AND (NOT "${${TARGET_NAME}_BOARD}" STREQUAL ""))
+                list(APPEND UPLOAD_COMMAND_LIST
+                "-b" "${${TARGET_NAME}_BOARD}")
+            endif()
+
+            if((DEFINED ${TARGET_NAME}_PORT)
+            AND (NOT "${${TARGET_NAME}_PORT}" STREQUAL ""))
+                list(APPEND UPLOAD_COMMAND_LIST
+                "-p" "${${TARGET_NAME}_PORT}")
+            endif()
+
+            if((DEFINED ${TARGET_NAME}_CF)
+            AND (NOT "${${TARGET_NAME}_CF}" STREQUAL ""))
+                list(APPEND UPLOAD_COMMAND_LIST
+                "-D" "clkfreq=${${TARGET_NAME}_CF}")
+            endif()
+
+            if((DEFINED ${TARGET_NAME}_CM)
+            AND (NOT "${${TARGET_NAME}_CM}" STREQUAL ""))
+                list(APPEND UPLOAD_COMMAND_LIST
+                "-D" "clkmode=${${TARGET_NAME}_CM}")
+            endif()
+
+            add_custom_target("upload"
+            COMMAND "${PROPELLER_LOAD}"
+            ${UPLOAD_COMMAND_LIST}
+            "${${TARGET_NAME}_FPATH}"
+            DEPENDS "${FILE_NAME}")
 
             return()
 
@@ -947,19 +1247,15 @@ function(generate_propeller_firmware TARGET_NAME)
         message(FATAL_ERROR "Memory model is empty!")
     endif()
 
-    if((NOT "${${TARGET_NAME}_MM}" STREQUAL "cmm")
-    AND (NOT "${${TARGET_NAME}_MM}" STREQUAL "lmm"))
-        message(FATAL_ERROR "Unknown mem model \"${${TARGET_NAME}_MM}\"!")
-    endif()
-
     add_definitions("-D__PROPELLER__")
+    add_definitions("-D__propeller__")
 
     if("${${TARGET_NAME}_MM}" STREQUAL "cmm")
         add_definitions("-D__PROPELLER_CMM__")
-    endif()
-
-    if("${${TARGET_NAME}_MM}" STREQUAL "lmm")
+    elseif("${${TARGET_NAME}_MM}" STREQUAL "lmm")
         add_definitions("-D__PROPELLER_LMM__")
+    else()
+        message(FATAL_ERROR "Unknown mem model \"${${TARGET_NAME}_MM}\"!")
     endif()
 
     if("${PROPELLER_C_FLAGS}" MATCHES "-m32bit-doubles")
@@ -981,10 +1277,8 @@ function(generate_propeller_firmware TARGET_NAME)
     if(NOT "${EXE_TARGET}" STREQUAL "")
 
         if((DEFINED LIB_TARGETS) AND LIB_TARGETS)
-
             target_link_libraries("${EXE_TARGET}"
             "-Wl,--start-group" ${LIB_TARGETS} "-Wl,--end-group")
-
         endif()
 
         setup_elf_size("${EXE_TARGET}")

@@ -37,7 +37,7 @@ if("${PROPELLER_ELF_SIZE}" STREQUAL "")
 endif()
 
 execute_process(COMMAND "${PROPELLER_ELF_SIZE}" "${ELF_FILE_PATH}"
-OUTPUT_VARIABLE SIZE_OUTPUT)
+OUTPUT_VARIABLE SIZE_OUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 set(S "[\t ]")
 set(W "[^\t ]")
@@ -65,8 +65,8 @@ math(EXPR P_PER_L "(${P_SIZE}*100)/${PROP_SIZE}")
 math(EXPR P_PER_R "((((${P_SIZE}*10000)/${PROP_SIZE})+5)/10)%10")
 
 math(EXPR D_SIZE "${M_DATA}+${M_BSS}")
-math(EXPR D_PER_L "(${D_SIZE}*100)/(${PROP_SIZE}-${P_SIZE})")
-math(EXPR D_PER_R "((((${D_SIZE}*10000)/(${PROP_SIZE}-${P_SIZE}))+5)/10)%10")
+math(EXPR D_PER_L "(${D_SIZE}*100)/${PROP_SIZE}")
+math(EXPR D_PER_R "((((${D_SIZE}*10000)/${PROP_SIZE})+5)/10)%10")
 
 message("Firmware Size: "
         "[Program: ${P_SIZE} bytes (${P_PER_L}.${P_PER_R}%)] "
@@ -78,8 +78,8 @@ math(EXPR P_PER_L "(${P_SIZE}*100)/${PROP_SIZE}")
 math(EXPR P_PER_R "((((${P_SIZE}*10000)/${PROP_SIZE})+5)/10)%10")
 
 math(EXPR D_SIZE "${M_DATA}")
-math(EXPR D_PER_L "(${D_SIZE}*100)/(${PROP_SIZE}-${P_SIZE})")
-math(EXPR D_PER_R "((((${D_SIZE}*10000)/(${PROP_SIZE}-${P_SIZE}))+5)/10)%10")
+math(EXPR D_PER_L "(${D_SIZE}*100)/${PROP_SIZE}")
+math(EXPR D_PER_R "((((${D_SIZE}*10000)/${PROP_SIZE})+5)/10)%10")
 
 message("EEPROM Size: "
         "[Program: ${P_SIZE} bytes (${P_PER_L}.${P_PER_R}%)] "

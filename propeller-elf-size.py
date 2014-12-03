@@ -64,7 +64,7 @@ if __name__ == "__main__":
     program_percentage = (float(program_size)/PROPELLER_SIZE)*100
 
     data_size = match_data + match_bss
-    data_percentage = (float(data_size)/(PROPELLER_SIZE-program_size))*100
+    data_percentage = (float(data_size)/PROPELLER_SIZE)*100
 
     print "Firmware Size: "\
           "[Program: %d bytes (%.1f%%)] "\
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     program_percentage = (float(program_size)/PROPELLER_SIZE)*100
 
     data_size = match_data
-    data_percentage = (float(data_size)/(PROPELLER_SIZE-program_size))*100
+    data_percentage = (float(data_size)/PROPELLER_SIZE)*100
 
     print "EEPROM Size: "\
           "[Program: %d bytes (%.1f%%)] "\
