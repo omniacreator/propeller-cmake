@@ -21,7 +21,7 @@ cmake_policy(VERSION "2.8")
 # C Flags ######################################################################
 
 set(PROPELLER_C_FLAGS
-"-ffunction-sections -fdata-sections -mfcache -m32bit-doubles")
+"-ffunction-sections -fdata-sections -m32bit-doubles") # -mfcache
 
 set(CMAKE_C_FLAGS
 "-Os ${PROPELLER_C_FLAGS} -std=c99") # removed -g
@@ -359,6 +359,14 @@ endfunction()
 ################################################################################
 
 function(generate_spin_object SPIN_FILE)
+
+    SET(EX "^[\t ]*[Dd][Aa][Tt].*$")
+    file(STRINGS "${SPIN_FILE}" SPIN_FILE_STRINGS REGEX "${EX}")
+
+    if(NOT SPIN_FILE_STRINGS)
+        set(SPIN_FILE_OBJECT "" PARENT_SCOPE)
+        return()
+    endif()
 
     if(NOT DEFINED SPIN_INCLUDE_LIST)
         set(SPIN_INCLUDE_LIST "")
@@ -719,7 +727,7 @@ function(setup_library FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
             set_target_properties("${FF_PATH_NAME}" PROPERTIES
             COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
             LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
-            SUFFIX ".a")
+            SUFFIX ".a" LINKER_LANGUAGE "CXX")
 
             set(LIB_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
 
@@ -760,7 +768,7 @@ function(setup_executable FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
             set_target_properties("${FF_PATH_NAME}" PROPERTIES
             COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
             LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
-            SUFFIX ".elf")
+            SUFFIX ".elf" LINKER_LANGUAGE "CXX")
 
             set(EXE_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
 
