@@ -21,7 +21,7 @@ cmake_policy(VERSION "2.8")
 # C Flags ######################################################################
 
 set(PROPELLER_C_FLAGS
-"-ffunction-sections -fdata-sections -m32bit-doubles") # -mfcache
+"-ffunction-sections -fdata-sections -m32bit-doubles -mfcache")
 
 set(CMAKE_C_FLAGS
 "-Os ${PROPELLER_C_FLAGS} -std=c99") # removed -g
@@ -305,9 +305,11 @@ function(generate_cogc_object COGC_FILE)
     if("${COGC_FILE_EXT}" STREQUAL ".cogc")
         set(COGC_COMPILIER "${CMAKE_C_COMPILER}")
         set(COGC_FLAGS "${CMAKE_C_FLAGS} -Os -mcog -r -xc")
+        set(COGC_LANGUAGE "C")
     elseif("${COGC_FILE_EXT}" STREQUAL ".cogcpp")
         set(COGC_COMPILIER "${CMAKE_CXX_COMPILER}")
         set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -Os -mcog -r -xc++")
+        set(COGC_LANGUAGE "CXX")
     else()
         message(FATAL_ERROR "Unknown file type \"${COGC_FILE_EXT}\"!")
     endif()
@@ -323,7 +325,7 @@ function(generate_cogc_object COGC_FILE)
     "${CMAKE_BINARY_DIR}/CMakeFiles/cogc.dir/${COGC_FILE_OBJ}.obj")
 
     set_source_files_properties("${COGC_FILE_OBJ}" PROPERTIES
-    EXTERNAL_OBJECT TRUE GENERATED TRUE)
+    EXTERNAL_OBJECT TRUE GENERATED TRUE LANGUAGE "${COGC_LANGUAGE}")
 
     separate_arguments(COGC_FLAGS)
 
@@ -390,7 +392,7 @@ function(generate_spin_object SPIN_FILE)
     "${CMAKE_BINARY_DIR}/CMakeFiles/spin.dir/${SPIN_FILE_OBJ}.obj")
 
     set_source_files_properties("${SPIN_FILE_OBJ}" PROPERTIES
-    EXTERNAL_OBJECT TRUE GENERATED TRUE)
+    EXTERNAL_OBJECT TRUE GENERATED TRUE LANGUAGE "C")
 
     get_filename_component(SPIN_FILE_OBJ_PATH "${SPIN_FILE_OBJ}" DIRECTORY)
     get_filename_component(SPIN_FILE_OBJ_NAME "${SPIN_FILE_OBJ}" NAME_WE)
@@ -727,7 +729,7 @@ function(setup_library FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
             set_target_properties("${FF_PATH_NAME}" PROPERTIES
             COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
             LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
-            SUFFIX ".a" LINKER_LANGUAGE "CXX")
+            SUFFIX ".a")
 
             set(LIB_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
 
@@ -768,7 +770,7 @@ function(setup_executable FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
             set_target_properties("${FF_PATH_NAME}" PROPERTIES
             COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
             LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
-            SUFFIX ".elf" LINKER_LANGUAGE "CXX")
+            SUFFIX ".elf")
 
             set(EXE_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
 
