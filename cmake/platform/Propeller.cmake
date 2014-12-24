@@ -21,92 +21,120 @@ cmake_policy(VERSION "2.8")
 # C Flags ######################################################################
 
 set(PROPELLER_C_FLAGS
-"-ffunction-sections -fdata-sections -m32bit-doubles -mfcache")
+"-ffunction-sections -fdata-sections -m32bit-doubles -mfcache"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_C_FLAGS
-"-Os ${PROPELLER_C_FLAGS} -std=c99") # removed -g
+"-Os ${PROPELLER_C_FLAGS} -std=c99" # removed -g
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_C_FLAGS_DEBUG
-"-g ${PROPELLER_C_FLAGS} -std=c99")
+"-g ${PROPELLER_C_FLAGS} -std=c99"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_C_FLAGS_MINSIZEREL
-"-Os -DNDEBUG ${PROPELLER_C_FLAGS} -std=c99")
+"-Os -DNDEBUG ${PROPELLER_C_FLAGS} -std=c99"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_C_FLAGS_RELEASE
-"-Os -DNDEBUG -w ${PROPELLER_C_FLAGS} -std=c99")
+"-Os -DNDEBUG -w ${PROPELLER_C_FLAGS} -std=c99"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_C_FLAGS_RELWITHDEBINFO
-"-Os -g -w ${PROPELLER_C_FLAGS} -std=c99")
+"-Os -g -w ${PROPELLER_C_FLAGS} -std=c99"
+CACHE INTERNAL "" FORCE)
 
 # C++ Flags ####################################################################
 
 set(PROPELLER_CXX_FLAGS
-"${PROPELLER_C_FLAGS} -fno-exceptions -fno-rtti")
+"${PROPELLER_C_FLAGS} -fno-exceptions -fno-rtti"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_CXX_FLAGS
-"-Os ${PROPELLER_CXX_FLAGS} -std=gnu++0x") # removed -g
+"-Os ${PROPELLER_CXX_FLAGS} -std=gnu++0x" # removed -g
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_CXX_FLAGS_DEBUG
-"-g ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
+"-g ${PROPELLER_CXX_FLAGS} -std=gnu++0x"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_CXX_FLAGS_MINSIZEREL
-"-Os -DNDEBUG ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
+"-Os -DNDEBUG ${PROPELLER_CXX_FLAGS} -std=gnu++0x"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_CXX_FLAGS_RELEASE
-"-Os -DNDEBUG ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
+"-Os -DNDEBUG ${PROPELLER_CXX_FLAGS} -std=gnu++0x"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-"-Os -g ${PROPELLER_CXX_FLAGS} -std=gnu++0x")
+"-Os -g ${PROPELLER_CXX_FLAGS} -std=gnu++0x"
+CACHE INTERNAL "" FORCE)
 
 # Linker Flags #################################################################
 
 set(PROPELLER_LINKER_FLAGS
-"-Wl,--gc-sections -lm -lpthread -ltiny")
+"-Wl,--gc-sections -lm -lpthread -ltiny"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_EXE_LINKER_FLAGS
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_SHARED_LINKER_FLAGS
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUG
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_SHARED_LINKER_FLAGS_RELEASE
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_MODULE_LINKER_FLAGS
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_MODULE_LINKER_FLAGS_DEBUG
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_MODULE_LINKER_FLAGS_RELEASE
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 set(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO
-"${PROPELLER_LINKER_FLAGS}")
+"${PROPELLER_LINKER_FLAGS}"
+CACHE INTERNAL "" FORCE)
 
 # Executable Paths #############################################################
 
@@ -543,6 +571,8 @@ endfunction()
 ################################################################################
 # parse_file_or_folder_path() - Gets source paths from a file or folder path.
 #
+# PARENT VAR = NO_RECURSE - Don't search folder recursively for code.
+#
 # INPUT = FF_PATH - Full path to input file or folder path.
 # OUTPUT = FF_PATH_SOURCES - Source file list.
 # OUTPUT = FF_PATH_HEADERS - Header file list.
@@ -570,8 +600,16 @@ function(parse_file_or_folder_path FF_PATH)
 
         else()
 
-            file(GLOB_RECURSE SIDE_FILES
-            "${FF_PATH}/*.side")
+            if(NOT DEFINED NO_RECURSE)
+                file(GLOB_RECURSE SIDE_FILES
+                "${FF_PATH}/*.side")
+            else()
+                file(GLOB SIDE_FILES
+                "${FF_PATH}/*.side")
+                file(GLOB SIDE_FILES_2
+                "${FF_PATH}/utility/*.side")
+                list(APPEND SIDE_FILES ${SIDE_FILES_2})
+            endif()
 
             foreach(SIDE_FILE ${SIDE_FILES})
 
@@ -585,9 +623,19 @@ function(parse_file_or_folder_path FF_PATH)
 
             endforeach()
 
-            file(GLOB_RECURSE COGC_FILES
-            "${FF_PATH}/*.cogc"
-            "${FF_PATH}/*.cogcpp")
+            if(NOT DEFINED NO_RECURSE)
+                file(GLOB_RECURSE COGC_FILES
+                "${FF_PATH}/*.cogc"
+                "${FF_PATH}/*.cogcpp")
+            else()
+                file(GLOB COGC_FILES
+                "${FF_PATH}/*.cogc"
+                "${FF_PATH}/*.cogcpp")
+                file(GLOB COGC_FILES_2
+                "${FF_PATH}/utility/*.cogc"
+                "${FF_PATH}/utility/*.cogcpp")
+                list(APPEND COGC_FILES ${COGC_FILES_2})
+            endif()
 
             foreach(COGC_FILE ${COGC_FILES})
 
@@ -599,8 +647,16 @@ function(parse_file_or_folder_path FF_PATH)
 
             endforeach()
 
-            file(GLOB_RECURSE SPIN_FILES
-            "${FF_PATH}/*.spin")
+            if(NOT DEFINED NO_RECURSE)
+                file(GLOB_RECURSE SPIN_FILES
+                "${FF_PATH}/*.spin")
+            else()
+                file(GLOB SPIN_FILES
+                "${FF_PATH}/*.spin")
+                file(GLOB SPIN_FILES_2
+                "${FF_PATH}/utility/*.spin")
+                list(APPEND SPIN_FILES ${SPIN_FILES_2})
+            endif()
 
             foreach(SPIN_FILE ${SPIN_FILES})
 
@@ -612,39 +668,87 @@ function(parse_file_or_folder_path FF_PATH)
 
             endforeach()
 
-            file(GLOB_RECURSE SOURCE_FILES
-            "${FF_PATH}/*.c"
-            "${FF_PATH}/*.i"
-            "${FF_PATH}/*.cpp"
-            "${FF_PATH}/*.ii"
-            "${FF_PATH}/*.cc"
-            "${FF_PATH}/*.cp"
-            "${FF_PATH}/*.cxx"
-            "${FF_PATH}/*.c++"
-            "${FF_PATH}/*.s"
-            "${FF_PATH}/*.sx")
+            if(NOT DEFINED NO_RECURSE)
+                file(GLOB_RECURSE SOURCE_FILES
+                "${FF_PATH}/*.c"
+                "${FF_PATH}/*.i"
+                "${FF_PATH}/*.cpp"
+                "${FF_PATH}/*.ii"
+                "${FF_PATH}/*.cc"
+                "${FF_PATH}/*.cp"
+                "${FF_PATH}/*.cxx"
+                "${FF_PATH}/*.c++"
+                "${FF_PATH}/*.s"
+                "${FF_PATH}/*.sx")
+            else()
+                file(GLOB SOURCE_FILES
+                "${FF_PATH}/*.c"
+                "${FF_PATH}/*.i"
+                "${FF_PATH}/*.cpp"
+                "${FF_PATH}/*.ii"
+                "${FF_PATH}/*.cc"
+                "${FF_PATH}/*.cp"
+                "${FF_PATH}/*.cxx"
+                "${FF_PATH}/*.c++"
+                "${FF_PATH}/*.s"
+                "${FF_PATH}/*.sx")
+                file(GLOB SOURCE_FILES_2
+                "${FF_PATH}/utility/*.c"
+                "${FF_PATH}/utility/*.i"
+                "${FF_PATH}/utility/*.cpp"
+                "${FF_PATH}/utility/*.ii"
+                "${FF_PATH}/utility/*.cc"
+                "${FF_PATH}/utility/*.cp"
+                "${FF_PATH}/utility/*.cxx"
+                "${FF_PATH}/utility/*.c++"
+                "${FF_PATH}/utility/*.s"
+                "${FF_PATH}/utility/*.sx")
+                list(APPEND SOURCE_FILES ${SOURCE_FILES_2})
+            endif()
 
             foreach(SOURCE_FILE ${SOURCE_FILES})
+
                 get_filename_component(FILE_D "${SOURCE_FILE}" DIRECTORY)
                 list(APPEND FF_PATH_FOLDER_LIST "${FILE_D}")
+
+                list(APPEND FF_PATH_SOURCE_LIST "${SOURCE_FILE}")
+
             endforeach()
 
-            list(APPEND FF_PATH_SOURCE_LIST ${SOURCE_FILES})
-
-            file(GLOB_RECURSE HEADER_FILES
-            "${FF_PATH}/*.h"
-            "${FF_PATH}/*.hpp"
-            "${FF_PATH}/*.hh"
-            "${FF_PATH}/*.hp"
-            "${FF_PATH}/*.hxx"
-            "${FF_PATH}/*.h++")
+            if(NOT DEFINED NO_RECURSE)
+                file(GLOB_RECURSE HEADER_FILES
+                "${FF_PATH}/*.h"
+                "${FF_PATH}/*.hpp"
+                "${FF_PATH}/*.hh"
+                "${FF_PATH}/*.hp"
+                "${FF_PATH}/*.hxx"
+                "${FF_PATH}/*.h++")
+            else()
+                file(GLOB HEADER_FILES
+                "${FF_PATH}/*.h"
+                "${FF_PATH}/*.hpp"
+                "${FF_PATH}/*.hh"
+                "${FF_PATH}/*.hp"
+                "${FF_PATH}/*.hxx"
+                "${FF_PATH}/*.h++")
+                file(GLOB HEADER_FILES_2
+                "${FF_PATH}/utility/*.h"
+                "${FF_PATH}/utility/*.hpp"
+                "${FF_PATH}/utility/*.hh"
+                "${FF_PATH}/utility/*.hp"
+                "${FF_PATH}/utility/*.hxx"
+                "${FF_PATH}/utility/*.h++")
+                list(APPEND HEADER_FILES ${HEADER_FILES_2})
+            endif()
 
             foreach(HEADER_FILE ${HEADER_FILES})
+
                 get_filename_component(FILE_D "${HEADER_FILE}" DIRECTORY)
                 list(APPEND FF_PATH_FOLDER_LIST "${FILE_D}")
-            endforeach()
 
-            list(APPEND FF_PATH_HEADER_LIST ${HEADER_FILES})
+                list(APPEND FF_PATH_HEADER_LIST "${HEADER_FILE}")
+
+            endforeach()
 
         endif()
 
@@ -705,6 +809,8 @@ endfunction()
 ################################################################################
 # setup_library() - Setup a library to be built.
 #
+# PARENT VAR = NO_RECURSE - Don't search folder recursively for code.
+#
 # INPUT = FF_PATH - Full path to library project file or folder.
 # INPUT = EXTRA_COMPILE_FLAGS - Extra compile flags for the library.
 # INPUT = EXTRA_LINK_FLAGS - Extra link flags for the library.
@@ -727,8 +833,8 @@ function(setup_library FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
             add_library("${FF_PATH_NAME}" STATIC ${FF_PATH_SOURCES})
 
             set_target_properties("${FF_PATH_NAME}" PROPERTIES
-            COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
-            LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
+            COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS}"
+            LINK_FLAGS "${EXTRA_LINK_FLAGS}"
             SUFFIX ".a")
 
             set(LIB_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
@@ -768,8 +874,8 @@ function(setup_executable FF_PATH EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
             add_executable("${FF_PATH_NAME}" ${FF_PATH_SOURCES})
 
             set_target_properties("${FF_PATH_NAME}" PROPERTIES
-            COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS} ${COMPILE_FLAGS}"
-            LINK_FLAGS "${EXTRA_LINK_FLAGS} ${LINK_FLAGS}"
+            COMPILE_FLAGS "${EXTRA_COMPILE_FLAGS}"
+            LINK_FLAGS "${EXTRA_LINK_FLAGS}"
             SUFFIX ".elf")
 
             set(EXE_TARGET "${FF_PATH_NAME}" PARENT_SCOPE)
@@ -939,9 +1045,13 @@ function(setup_libraries LIBRARY_PATHS EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 
     foreach(LIBRARY_PATH ${LIBRARY_PATH_LIST})
 
+        set(NO_RECURSE NO_RECURSE)
+
         setup_library("${LIBRARY_PATH}"
         "${EXTRA_COMPILE_FLAGS}"
         "${EXTRA_LINK_FLAGS}")
+
+        unset(NO_RECURSE)
 
         if(LIB_TARGET)
             list(APPEND LIB_TARGET_LIST "${LIB_TARGET}")
@@ -995,6 +1105,7 @@ function(generate_cogc_include_directories LIBRARY_PATHS)
             foreach(LIBRARY ${LIBRARIES})
 
                 get_filename_component(LIB_PATH "${LIBRARY}" DIRECTORY)
+
                 list(APPEND LIBRARY_PATH_LIST
                 "-I" "${LIB_PATH}")
 
@@ -1063,6 +1174,7 @@ function(generate_spin_include_directories LIBRARY_PATHS)
             foreach(LIBRARY ${LIBRARIES})
 
                 get_filename_component(LIB_PATH "${LIBRARY}" DIRECTORY)
+
                 list(APPEND LIBRARY_PATH_LIST
                 "-I" "${LIB_PATH}")
 
@@ -1092,6 +1204,18 @@ endfunction()
 ################################################################################
 # generate_propeller_firmware() - Main Function.
 #
+# PARENT VAR = C_COMPILE_FLAGS_TO_ADD - C compile flags to add (list)
+# PARENT VAR = C_COMPILE_FLAGS_TO_REMOVE - C compile flags to remove (list)
+#
+# PARENT VAR = CXX_COMPILE_FLAGS_TO_ADD - C++ compile flags to add (list)
+# PARENT VAR = CXX_COMPILE_FLAGS_TO_REMOVE - C++ compile flags to remove (list)
+#
+# PARENT VAR = COMPILE_FLAGS_TO_ADD - Compile flags to add (list)
+# PARENT VAR = COMPILE_FLAGS_TO_REMOVE - Compile flags to remove (list)
+#
+# PARENT VAR = LINKER_FLAGS_TO_ADD - Linker flags to add (list)
+# PARENT VAR = LINKER_FLAGS_TO_REMOVE - Linker flags to remove (list)
+#
 # INPUT = TARGET_NAME - Target name.
 # INPUT = ${TARGET_NAME}_LIBS - Library root folder paths.
 # INPUT = ${TARGET_NAME}_FPATH - File or folder path.
@@ -1103,6 +1227,188 @@ endfunction()
 ################################################################################
 
 function(generate_propeller_firmware TARGET_NAME)
+
+    if(DEFINED C_COMPILE_FLAGS_TO_ADD)
+        foreach(FLAG ${C_COMPILE_FLAGS_TO_ADD})
+            set(CMAKE_C_FLAGS
+            "${CMAKE_C_FLAGS} ${FLAG}")
+            set(CMAKE_C_FLAGS_DEBUG
+            "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
+            set(CMAKE_C_FLAGS_MINSIZEREL
+            "${CMAKE_C_FLAGS_MINSIZEREL} ${FLAG}")
+            set(CMAKE_C_FLAGS_RELEASE
+            "${CMAKE_C_FLAGS_RELEASE} ${FLAG}")
+            set(CMAKE_C_FLAGS_RELWITHDEBINFO
+            "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${FLAG}")
+        endforeach()
+    endif()
+
+    if(DEFINED CXX_COMPILE_FLAGS_TO_ADD)
+        foreach(FLAG ${CXX_COMPILE_FLAGS_TO_ADD})
+            set(CMAKE_CXX_FLAGS
+            "${CMAKE_CXX_FLAGS} ${FLAG}")
+            set(CMAKE_CXX_FLAGS_DEBUG
+            "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
+            set(CMAKE_CXX_FLAGS_MINSIZEREL
+            "${CMAKE_CXX_FLAGS_MINSIZEREL} ${FLAG}")
+            set(CMAKE_CXX_FLAGS_RELEASE
+            "${CMAKE_CXX_FLAGS_RELEASE} ${FLAG}")
+            set(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+            "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${FLAG}")
+        endforeach()
+    endif()
+
+    if(DEFINED COMPILE_FLAGS_TO_ADD)
+        foreach(FLAG ${COMPILE_FLAGS_TO_ADD})
+            set(CMAKE_C_FLAGS
+            "${CMAKE_C_FLAGS} ${FLAG}")
+            set(CMAKE_C_FLAGS_DEBUG
+            "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
+            set(CMAKE_C_FLAGS_MINSIZEREL
+            "${CMAKE_C_FLAGS_MINSIZEREL} ${FLAG}")
+            set(CMAKE_C_FLAGS_RELEASE
+            "${CMAKE_C_FLAGS_RELEASE} ${FLAG}")
+            set(CMAKE_C_FLAGS_RELWITHDEBINFO
+            "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${FLAG}")
+            set(CMAKE_CXX_FLAGS
+            "${CMAKE_CXX_FLAGS} ${FLAG}")
+            set(CMAKE_CXX_FLAGS_DEBUG
+            "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
+            set(CMAKE_CXX_FLAGS_MINSIZEREL
+            "${CMAKE_CXX_FLAGS_MINSIZEREL} ${FLAG}")
+            set(CMAKE_CXX_FLAGS_RELEASE
+            "${CMAKE_CXX_FLAGS_RELEASE} ${FLAG}")
+            set(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+            "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${FLAG}")
+        endforeach()
+    endif()
+
+    if(DEFINED LINKER_FLAGS_TO_ADD)
+        foreach(FLAG ${LINKER_FLAGS_TO_ADD})
+            set(CMAKE_EXE_LINKER_FLAGS
+            "${CMAKE_EXE_LINKER_FLAGS} ${FLAG}")
+            set(CMAKE_EXE_LINKER_FLAGS_DEBUG
+            "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${FLAG}")
+            set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL
+            "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} ${FLAG}")
+            set(CMAKE_EXE_LINKER_FLAGS_RELEASE
+            "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${FLAG}")
+            set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
+            "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} ${FLAG}")
+            set(CMAKE_SHARED_LINKER_FLAGS
+            "${CMAKE_SHARED_LINKER_FLAGS} ${FLAG}")
+            set(CMAKE_SHARED_LINKER_FLAGS_DEBUG
+            "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} ${FLAG}")
+            set(CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL
+            "${CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL} ${FLAG}")
+            set(CMAKE_SHARED_LINKER_FLAGS_RELEASE
+            "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} ${FLAG}")
+            set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO
+            "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} ${FLAG}")
+            set(CMAKE_MODULE_LINKER_FLAGS
+            "${CMAKE_MODULE_LINKER_FLAGS} ${FLAG}")
+            set(CMAKE_MODULE_LINKER_FLAGS_DEBUG
+            "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} ${FLAG}")
+            set(CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL
+            "${CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL} ${FLAG}")
+            set(CMAKE_MODULE_LINKER_FLAGS_RELEASE
+            "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} ${FLAG}")
+            set(CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO
+            "${CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO} ${FLAG}")
+        endforeach()
+    endif()
+
+    if(DEFINED C_COMPILE_FLAGS_TO_REMOVE)
+        foreach(FLAG ${C_COMPILE_FLAGS_TO_REMOVE})
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS
+            "${CMAKE_C_FLAGS}")
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_DEBUG
+            "${CMAKE_C_FLAGS_DEBUG}")
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_MINSIZEREL
+            "${CMAKE_C_FLAGS_MINSIZEREL}")
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_RELEASE
+            "${CMAKE_C_FLAGS_RELEASE}")
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_RELWITHDEBINFO
+            "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+        endforeach()
+    endif()
+
+    if(DEFINED CXX_COMPILE_FLAGS_TO_REMOVE)
+        foreach(FLAG ${CXX_COMPILE_FLAGS_TO_REMOVE})
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS
+            "${CMAKE_CXX_FLAGS}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_DEBUG
+            "${CMAKE_CXX_FLAGS_DEBUG}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_MINSIZEREL
+            "${CMAKE_CXX_FLAGS_MINSIZEREL}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_RELEASE
+            "${CMAKE_CXX_FLAGS_RELEASE}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO
+            "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+        endforeach()
+    endif()
+
+    if(DEFINED COMPILE_FLAGS_TO_REMOVE)
+        foreach(FLAG ${COMPILE_FLAGS_TO_REMOVE})
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS
+            "${CMAKE_C_FLAGS}")
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_DEBUG
+            "${CMAKE_C_FLAGS_DEBUG}")
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_MINSIZEREL
+            "${CMAKE_C_FLAGS_MINSIZEREL}")
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_RELEASE
+            "${CMAKE_C_FLAGS_RELEASE}")
+            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_RELWITHDEBINFO
+            "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS
+            "${CMAKE_CXX_FLAGS}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_DEBUG
+            "${CMAKE_CXX_FLAGS_DEBUG}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_MINSIZEREL
+            "${CMAKE_CXX_FLAGS_MINSIZEREL}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_RELEASE
+            "${CMAKE_CXX_FLAGS_RELEASE}")
+            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO
+            "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+        endforeach()
+    endif()
+
+    if(DEFINED LINKER_FLAGS_TO_REMOVE)
+        foreach(FLAG ${LINKER_FLAGS_TO_REMOVE})
+            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS
+            "${CMAKE_EXE_LINKER_FLAGS}")
+            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS_DEBUG
+            "${CMAKE_EXE_LINKER_FLAGS_DEBUG}")
+            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS_MINSIZEREL
+            "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL}")
+            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS_RELEASE
+            "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
+            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
+            "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}")
+            string(REPLACE "${FLAG}" "" CMAKE_SHARED_LINKER_FLAGS
+            "${CMAKE_SHARED_LINKER_FLAGS}")
+            string(REPLACE "${FLAG}" "" CMAKE_SHARED_LINKER_FLAGS_DEBUG
+            "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}")
+            string(REPLACE "${FLAG}" "" CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL
+            "${CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL}")
+            string(REPLACE "${FLAG}" "" CMAKE_SHARED_LINKER_FLAGS_RELEASE
+            "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
+            string(REPLACE "${FLAG}" ""
+            CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO
+            "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}")
+            string(REPLACE "${FLAG}" "" CMAKE_MODULE_LINKER_FLAGS
+            "${CMAKE_MODULE_LINKER_FLAGS}")
+            string(REPLACE "${FLAG}" "" CMAKE_MODULE_LINKER_FLAGS_DEBUG
+            "${CMAKE_MODULE_LINKER_FLAGS_DEBUG}")
+            string(REPLACE "${FLAG}" "" CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL
+            "${CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL}")
+            string(REPLACE "${FLAG}" "" CMAKE_MODULE_LINKER_FLAGS_RELEASE
+            "${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
+            string(REPLACE "${FLAG}" ""
+            CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO
+            "${CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO}")
+        endforeach()
+    endif()
 
     if(NOT DEFINED ${TARGET_NAME}_FPATH)
         message(FATAL_ERROR "File or folder path is not defined!")
@@ -1130,7 +1436,8 @@ function(generate_propeller_firmware TARGET_NAME)
 
         if("${FILE_TYPE}" STREQUAL ".spin")
 
-            set(FILE_NAME_BINARY "${CMAKE_BINARY_DIR}/${FILE_NAME}.binary")
+            set(FILE_NAME_BINARY
+            "${CMAKE_BINARY_DIR}/${FILE_NAME}.binary")
 
             set_source_files_properties("${FILE_NAME_BINARY}" PROPERTIES
             EXTERNAL_OBJECT TRUE GENERATED TRUE)
@@ -1268,7 +1575,8 @@ function(generate_propeller_firmware TARGET_NAME)
         message(FATAL_ERROR "Unknown mem model \"${${TARGET_NAME}_MM}\"!")
     endif()
 
-    if("${PROPELLER_C_FLAGS}" MATCHES "-m32bit-doubles")
+    if(("${CMAKE_C_FLAGS}" MATCHES "-m32bit-doubles")
+    OR ("${CMAKE_CXX_FLAGS}" MATCHES "-m32bit-doubles"))
         add_definitions("-D__PROPELLER_32BIT_DOUBLES__")
     else()
         add_definitions("-D__PROPELLER_64BIT_DOUBLES__")
