@@ -175,7 +175,10 @@ function(cogc_dependencies COGC_FILE)
     endif()
 
     get_filename_component(COGC_FILE_PATH "${COGC_FILE}" DIRECTORY)
-    list(APPEND COGC_INCLUDE_LIST "${COGC_FILE_PATH}")
+    set(COGC_INCLUDE_LIST_2 ${COGC_INCLUDE_LIST})
+    list(APPEND COGC_INCLUDE_LIST_2 "-I" "${COGC_FILE_PATH}")
+    list(REMOVE_DUPLICATES COGC_INCLUDE_LIST_2)
+    list(REMOVE_ITEM COGC_INCLUDE_LIST_2 "-I")
 
     set(EX "#include[\t ]+[<\"](.+)[>\"]")
 
@@ -189,7 +192,7 @@ function(cogc_dependencies COGC_FILE)
 
             set(FILE_PATH "")
 
-            foreach(COGC_INCLUDE ${COGC_INCLUDE_LIST})
+            foreach(COGC_INCLUDE ${COGC_INCLUDE_LIST_2})
                 if(EXISTS "${COGC_INCLUDE}/${FILE_NAME}")
                     set(FILE_PATH "${COGC_INCLUDE}/${FILE_NAME}")
                     break()
@@ -235,7 +238,10 @@ function(spin_dependencies SPIN_FILE)
     endif()
 
     get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
-    list(APPEND SPIN_INCLUDE_LIST "${SPIN_FILE_PATH}")
+    set(SPIN_INCLUDE_LIST_2 ${SPIN_INCLUDE_LIST})
+    list(APPEND SPIN_INCLUDE_LIST_2 "-I" "${SPIN_FILE_PATH}")
+    list(REMOVE_DUPLICATES SPIN_INCLUDE_LIST_2)
+    list(REMOVE_ITEM SPIN_INCLUDE_LIST_2 "-I")
 
     set(EX ".+(\\[.+\\])?[\t ]*:[\t ]*\"(.+)\"")
 
@@ -256,7 +262,7 @@ function(spin_dependencies SPIN_FILE)
 
             set(FILE_PATH "")
 
-            foreach(SPIN_INCLUDE ${SPIN_INCLUDE_LIST})
+            foreach(SPIN_INCLUDE ${SPIN_INCLUDE_LIST_2})
                 if(EXISTS "${SPIN_INCLUDE}/${FILE_NAME}")
                     set(FILE_PATH "${SPIN_INCLUDE}/${FILE_NAME}")
                     break()
@@ -288,7 +294,7 @@ function(spin_dependencies SPIN_FILE)
 
             set(FILE_PATH "")
 
-            foreach(SPIN_INCLUDE ${SPIN_INCLUDE_LIST})
+            foreach(SPIN_INCLUDE ${SPIN_INCLUDE_LIST_2})
                 if(EXISTS "${SPIN_INCLUDE}/${FILE_NAME}")
                     set(FILE_PATH "${SPIN_INCLUDE}/${FILE_NAME}")
                     break()
@@ -1043,21 +1049,21 @@ function(setup_libraries LIBRARY_PATHS EXTRA_COMPILE_FLAGS EXTRA_LINK_FLAGS)
 
     set(LIB_TARGET_LIST "")
 
-    foreach(LIBRARY_PATH ${LIBRARY_PATH_LIST})
+    set(NO_RECURSE NO_RECURSE)
 
-        set(NO_RECURSE NO_RECURSE)
+    foreach(LIBRARY_PATH ${LIBRARY_PATH_LIST})
 
         setup_library("${LIBRARY_PATH}"
         "${EXTRA_COMPILE_FLAGS}"
         "${EXTRA_LINK_FLAGS}")
-
-        unset(NO_RECURSE)
 
         if(LIB_TARGET)
             list(APPEND LIB_TARGET_LIST "${LIB_TARGET}")
         endif()
 
     endforeach()
+
+    unset(NO_RECURSE)
 
     set(LIB_TARGETS ${LIB_TARGET_LIST} PARENT_SCOPE)
 
