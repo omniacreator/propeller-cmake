@@ -42,7 +42,7 @@ OUTPUT_VARIABLE SIZE_OUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
 set(S "[\t ]")
 set(W "[^\t ]")
 
-list(APPEND EXPRESSION
+set(EXPRESSION
 "^" "${S}*"
 "text" "${S}+" "data" "${S}+" "bss"
 "${S}+" "dec" "${S}+" "hex" "${S}+" "filename"

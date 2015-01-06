@@ -73,7 +73,7 @@ CACHE INTERNAL "" FORCE)
 # Linker Flags #################################################################
 
 set(PROPELLER_LINKER_FLAGS
-"-Wl,--gc-sections -lm -lpthread -ltiny"
+"-Wl,--gc-sections -lm"
 CACHE INTERNAL "" FORCE)
 
 set(CMAKE_EXE_LINKER_FLAGS
@@ -176,7 +176,7 @@ function(cogc_dependencies COGC_FILE)
 
     get_filename_component(COGC_FILE_PATH "${COGC_FILE}" DIRECTORY)
     set(COGC_INCLUDE_LIST_2 ${COGC_INCLUDE_LIST})
-    list(APPEND COGC_INCLUDE_LIST_2 "-I" "${COGC_FILE_PATH}")
+    list(INSERT COGC_INCLUDE_LIST_2 0 "-I" "${COGC_FILE_PATH}")
     list(REMOVE_DUPLICATES COGC_INCLUDE_LIST_2)
     list(REMOVE_ITEM COGC_INCLUDE_LIST_2 "-I")
 
@@ -239,7 +239,7 @@ function(spin_dependencies SPIN_FILE)
 
     get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
     set(SPIN_INCLUDE_LIST_2 ${SPIN_INCLUDE_LIST})
-    list(APPEND SPIN_INCLUDE_LIST_2 "-I" "${SPIN_FILE_PATH}")
+    list(INSERT SPIN_INCLUDE_LIST_2 0 "-I" "${SPIN_FILE_PATH}")
     list(REMOVE_DUPLICATES SPIN_INCLUDE_LIST_2)
     list(REMOVE_ITEM SPIN_INCLUDE_LIST_2 "-I")
 
@@ -338,15 +338,21 @@ function(generate_cogc_object COGC_FILE)
 
     if("${COGC_FILE_EXT}" STREQUAL ".cogc")
         set(COGC_COMPILIER "${CMAKE_C_COMPILER}")
-        set(COGC_FLAGS "${CMAKE_C_FLAGS} -Os -mcog -r -xc")
+        set(COGC_FLAGS "${CMAKE_C_FLAGS} -mcog -r -xc")
         set(COGC_LANGUAGE "C")
     elseif("${COGC_FILE_EXT}" STREQUAL ".cogcpp")
         set(COGC_COMPILIER "${CMAKE_CXX_COMPILER}")
-        set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -Os -mcog -r -xc++")
+        set(COGC_FLAGS "${CMAKE_CXX_FLAGS} -mcog -r -xc++")
         set(COGC_LANGUAGE "CXX")
     else()
         message(FATAL_ERROR "Unknown file type \"${COGC_FILE_EXT}\"!")
     endif()
+
+    # Remove to avoid propeller-gcc "_COGMEM static" bug...
+    string(REPLACE "-ffunction-sections " " " COGC_FLAGS "${COGC_FLAGS}")
+
+    # Remove to avoid propeller-gcc "_COGMEM static" bug...
+    string(REPLACE "-fdata-sections " " " COGC_FLAGS "${COGC_FLAGS}")
 
     string(REGEX REPLACE "\\\\" "/" COGC_FILE_OBJ "${COGC_FILE}")
     string(REGEX REPLACE "[^0-9A-Za-z./]" "_" COGC_FILE_OBJ "${COGC_FILE_OBJ}")
@@ -371,7 +377,7 @@ function(generate_cogc_object COGC_FILE)
     COMMAND "${COGC_COMPILIER}" ${COGC_FLAGS}
     ARGS ${COGC_INCLUDE_LIST}
     ARGS -o "${COGC_FILE_OBJ}"
-    ARGS -c "${COGC_FILE}"
+    ARGS "${COGC_FILE}"
     COMMAND "${CMAKE_OBJCOPY}"
     ARGS --localize-text --rename-section
     ARGS .text=".${COGC_FILE_OBJ_NAME}.cog"
@@ -435,15 +441,17 @@ function(generate_spin_object SPIN_FILE)
     get_filename_component(SPIN_FILE_DAT_NAME "${SPIN_FILE_DAT}" NAME)
 
     get_filename_component(SPIN_FILE_PATH "${SPIN_FILE}" DIRECTORY)
-    list(APPEND SPIN_INCLUDE_LIST "-I" "${SPIN_FILE_PATH}")
+    list(INSERT SPIN_INCLUDE_LIST 0 "-I" "${SPIN_FILE_PATH}")
 
     spin_dependencies("${SPIN_FILE}")
 
     add_custom_command(OUTPUT "${SPIN_FILE_OBJ}"
-    COMMAND "${OPENSPIN}" -q
+    COMMAND "${CMAKE_COMMAND}"
+    ARGS -E chdir "${SPIN_FILE_PATH}"
+    ARGS "${OPENSPIN}" -q -c
     ARGS ${SPIN_INCLUDE_LIST}
     ARGS -o "${SPIN_FILE_DAT}"
-    ARGS -c "${SPIN_FILE}"
+    ARGS "${SPIN_FILE}"
     COMMAND "${CMAKE_COMMAND}"
     ARGS -E chdir "${SPIN_FILE_OBJ_PATH}"
     ARGS "${CMAKE_OBJCOPY}"
@@ -904,10 +912,11 @@ endfunction()
 
 function(setup_bin_size TARGET_NAME)
 
-    add_custom_command(TARGET "${TARGET_NAME}" POST_BUILD
+    add_custom_target("${TARGET_NAME}_bin_size" ALL
     COMMAND "${CMAKE_COMMAND}"
-    ARGS "-DBIN_FILE_PATH=\"${CMAKE_BINARY_DIR}/${TARGET_NAME}.binary\""
-    -P "${PROPELLER_BIN_SIZE_SCRIPT}")
+    "-DBIN_FILE_PATH=\"${CMAKE_BINARY_DIR}/${TARGET_NAME}.binary\""
+    -P "${PROPELLER_BIN_SIZE_SCRIPT}"
+    DEPENDS "${TARGET_NAME}")
 
 endfunction()
 
@@ -919,11 +928,12 @@ endfunction()
 
 function(setup_elf_size TARGET_NAME)
 
-    add_custom_command(TARGET "${TARGET_NAME}" POST_BUILD
+    add_custom_target("${TARGET_NAME}_elf_size" ALL
     COMMAND "${CMAKE_COMMAND}"
-    ARGS "-DELF_FILE_PATH=\"${CMAKE_BINARY_DIR}/${TARGET_NAME}.elf\""
+    "-DELF_FILE_PATH=\"${CMAKE_BINARY_DIR}/${TARGET_NAME}.elf\""
     "-DPROPELLER_ELF_SIZE=\"${PROPELLER_ELF_SIZE}\""
-    -P "${PROPELLER_ELF_SIZE_SCRIPT}")
+    -P "${PROPELLER_ELF_SIZE_SCRIPT}"
+    DEPENDS "${TARGET_NAME}")
 
 endfunction()
 
@@ -1326,91 +1336,91 @@ function(generate_propeller_firmware TARGET_NAME)
 
     if(DEFINED C_COMPILE_FLAGS_TO_REMOVE)
         foreach(FLAG ${C_COMPILE_FLAGS_TO_REMOVE})
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS
             "${CMAKE_C_FLAGS}")
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_DEBUG
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS_DEBUG
             "${CMAKE_C_FLAGS_DEBUG}")
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_MINSIZEREL
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS_MINSIZEREL
             "${CMAKE_C_FLAGS_MINSIZEREL}")
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_RELEASE
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS_RELEASE
             "${CMAKE_C_FLAGS_RELEASE}")
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_RELWITHDEBINFO
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS_RELWITHDEBINFO
             "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
         endforeach()
     endif()
 
     if(DEFINED CXX_COMPILE_FLAGS_TO_REMOVE)
         foreach(FLAG ${CXX_COMPILE_FLAGS_TO_REMOVE})
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS
             "${CMAKE_CXX_FLAGS}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_DEBUG
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS_DEBUG
             "${CMAKE_CXX_FLAGS_DEBUG}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_MINSIZEREL
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS_MINSIZEREL
             "${CMAKE_CXX_FLAGS_MINSIZEREL}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_RELEASE
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS_RELEASE
             "${CMAKE_CXX_FLAGS_RELEASE}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS_RELWITHDEBINFO
             "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
         endforeach()
     endif()
 
     if(DEFINED COMPILE_FLAGS_TO_REMOVE)
         foreach(FLAG ${COMPILE_FLAGS_TO_REMOVE})
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS
             "${CMAKE_C_FLAGS}")
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_DEBUG
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS_DEBUG
             "${CMAKE_C_FLAGS_DEBUG}")
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_MINSIZEREL
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS_MINSIZEREL
             "${CMAKE_C_FLAGS_MINSIZEREL}")
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_RELEASE
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS_RELEASE
             "${CMAKE_C_FLAGS_RELEASE}")
-            string(REPLACE "${FLAG}" "" CMAKE_C_FLAGS_RELWITHDEBINFO
+            string(REPLACE "${FLAG} " " " CMAKE_C_FLAGS_RELWITHDEBINFO
             "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS
             "${CMAKE_CXX_FLAGS}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_DEBUG
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS_DEBUG
             "${CMAKE_CXX_FLAGS_DEBUG}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_MINSIZEREL
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS_MINSIZEREL
             "${CMAKE_CXX_FLAGS_MINSIZEREL}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_RELEASE
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS_RELEASE
             "${CMAKE_CXX_FLAGS_RELEASE}")
-            string(REPLACE "${FLAG}" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO
+            string(REPLACE "${FLAG} " " " CMAKE_CXX_FLAGS_RELWITHDEBINFO
             "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
         endforeach()
     endif()
 
     if(DEFINED LINKER_FLAGS_TO_REMOVE)
         foreach(FLAG ${LINKER_FLAGS_TO_REMOVE})
-            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS
+            string(REPLACE "${FLAG} " " " CMAKE_EXE_LINKER_FLAGS
             "${CMAKE_EXE_LINKER_FLAGS}")
-            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS_DEBUG
+            string(REPLACE "${FLAG} " " " CMAKE_EXE_LINKER_FLAGS_DEBUG
             "${CMAKE_EXE_LINKER_FLAGS_DEBUG}")
-            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS_MINSIZEREL
+            string(REPLACE "${FLAG} " " " CMAKE_EXE_LINKER_FLAGS_MINSIZEREL
             "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL}")
-            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS_RELEASE
+            string(REPLACE "${FLAG} " " " CMAKE_EXE_LINKER_FLAGS_RELEASE
             "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-            string(REPLACE "${FLAG}" "" CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
+            string(REPLACE "${FLAG} " " " CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
             "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}")
-            string(REPLACE "${FLAG}" "" CMAKE_SHARED_LINKER_FLAGS
+            string(REPLACE "${FLAG} " " " CMAKE_SHARED_LINKER_FLAGS
             "${CMAKE_SHARED_LINKER_FLAGS}")
-            string(REPLACE "${FLAG}" "" CMAKE_SHARED_LINKER_FLAGS_DEBUG
+            string(REPLACE "${FLAG} " " " CMAKE_SHARED_LINKER_FLAGS_DEBUG
             "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}")
-            string(REPLACE "${FLAG}" "" CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL
+            string(REPLACE "${FLAG} " " " CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL
             "${CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL}")
-            string(REPLACE "${FLAG}" "" CMAKE_SHARED_LINKER_FLAGS_RELEASE
+            string(REPLACE "${FLAG} " " " CMAKE_SHARED_LINKER_FLAGS_RELEASE
             "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
-            string(REPLACE "${FLAG}" ""
+            string(REPLACE "${FLAG} " " "
             CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO
             "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}")
-            string(REPLACE "${FLAG}" "" CMAKE_MODULE_LINKER_FLAGS
+            string(REPLACE "${FLAG} " " " CMAKE_MODULE_LINKER_FLAGS
             "${CMAKE_MODULE_LINKER_FLAGS}")
-            string(REPLACE "${FLAG}" "" CMAKE_MODULE_LINKER_FLAGS_DEBUG
+            string(REPLACE "${FLAG} " " " CMAKE_MODULE_LINKER_FLAGS_DEBUG
             "${CMAKE_MODULE_LINKER_FLAGS_DEBUG}")
-            string(REPLACE "${FLAG}" "" CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL
+            string(REPLACE "${FLAG} " " " CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL
             "${CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL}")
-            string(REPLACE "${FLAG}" "" CMAKE_MODULE_LINKER_FLAGS_RELEASE
+            string(REPLACE "${FLAG} " " " CMAKE_MODULE_LINKER_FLAGS_RELEASE
             "${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
-            string(REPLACE "${FLAG}" ""
+            string(REPLACE "${FLAG} " " "
             CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO
             "${CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO}")
         endforeach()
@@ -1450,15 +1460,17 @@ function(generate_propeller_firmware TARGET_NAME)
 
             get_filename_component(SPIN_FILE_PATH
             "${${TARGET_NAME}_FPATH}" DIRECTORY)
-            list(APPEND SPIN_INCLUDE_LIST "-I" "${SPIN_FILE_PATH}")
+            list(INSERT SPIN_INCLUDE_LIST 0 "-I" "${SPIN_FILE_PATH}")
 
             spin_dependencies("${${TARGET_NAME}_FPATH}")
 
             add_custom_command(OUTPUT "${FILE_NAME_BINARY}"
-            COMMAND "${OPENSPIN}" -q
+            COMMAND "${CMAKE_COMMAND}"
+            ARGS -E chdir "${SPIN_FILE_PATH}"
+            ARGS "${OPENSPIN}" -q -b
             ARGS ${SPIN_INCLUDE_LIST}
             ARGS -o "${FILE_NAME_BINARY}"
-            ARGS -b "${${TARGET_NAME}_FPATH}"
+            ARGS "${${TARGET_NAME}_FPATH}"
             DEPENDS ${SPIN_FILE_DEPENDENCY_LIST})
 
             add_custom_target("${FILE_NAME}" ALL
@@ -1602,7 +1614,9 @@ function(generate_propeller_firmware TARGET_NAME)
 
         if((DEFINED LIB_TARGETS) AND LIB_TARGETS)
             target_link_libraries("${EXE_TARGET}"
-            "-Wl,--start-group" ${LIB_TARGETS} "-Wl,--end-group")
+            "-Wl,--start-group"
+            "-lpthread" "-ltiny" ${LIB_TARGETS}
+            "-Wl,--end-group")
         endif()
 
         setup_elf_size("${EXE_TARGET}")
